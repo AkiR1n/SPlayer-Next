@@ -29,7 +29,7 @@ const playlistTracks: NeteaseModule = async (query, request) => {
   } catch (err) {
     if (isAdd && err instanceof NeteaseRequestError) {
       const code = Number(err.response.body?.code ?? err.response.status);
-      if (code !== 200) {
+      if (code === 512) {
         return request(
           "/api/playlist/manipulate/tracks",
           buildData([...tracks, ...tracks]),

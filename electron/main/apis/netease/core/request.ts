@@ -184,6 +184,7 @@ export const createRequest = async (
   }
 
   let url = "";
+  let xeapiGeneration: number | undefined;
   let encryptData: Record<string, string | number | boolean> | typeof data;
 
   switch (crypto) {
@@ -209,6 +210,8 @@ export const createRequest = async (
       break;
     }
     case "xeapi": {
+      const session = getXeapiSession();
+      xeapiGeneration = session.generation;
       const publicKeyState = await ensureXeapiKey(cookie.deviceId);
       const xeapiOs = cookie.os === "android" ? cookie.os : "android";
       const xeapiAppver = cookie.os === "android" && cookie.appver ? cookie.appver : "9.1.65";
@@ -235,7 +238,6 @@ export const createRequest = async (
         buildver: xeapiBuildver,
         sDeviceId: cookie.sDeviceId || cookie.deviceId,
       });
-      const session = getXeapiSession();
       url = (options.domain || XEAPI_DOMAIN) + "/xeapi/" + uri.slice(5);
       encryptData = encrypt.xeapi(uri, data, {
         publicKeyState,
@@ -346,7 +348,9 @@ export const createRequest = async (
   if (isXeapi) {
     const ssid = res.headers.get("x-encr-ssid");
     const sskey = res.headers.get("x-encr-sskey");
-    if (ssid && sskey) updateXeapiSession(ssid, sskey);
+    if (ssid && sskey && xeapiGeneration !== undefined) {
+      updateXeapiSession(ssid, sskey, xeapiGeneration);
+    }
   }
 
   let parsed: NeteaseBody;
@@ -360,11 +364,10 @@ export const createRequest = async (
       ) as NeteaseBody;
     } else {
       const text = await res.text();
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        parsed = { code: res.status, raw: text };
-      }
+      parsed = JSON.parse(text);
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("网易云响应不是有效对象");
     }
     answer.body = parsed;
     if (parsed?.code !== undefined) parsed.code = Number(parsed.code);
@@ -373,8 +376,8 @@ export const createRequest = async (
       answer.status = 200;
     }
   } catch {
-    answer.body = { code: res.status, msg: "parse failed" };
-    answer.status = res.status;
+    answer.status = res.status >= 400 ? res.status : 502;
+    answer.body = { code: answer.status, msg: "网易云响应解析失败" };
   }
 
   answer.status = answer.status > 100 && answer.status < 600 ? answer.status : 400;

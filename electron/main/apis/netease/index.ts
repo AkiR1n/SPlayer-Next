@@ -56,6 +56,11 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "scrobble_v1",
   "like",
   "like_v1",
+  "likelist",
+  "album_sublist",
+  "artist_sublist",
+  "user_level",
+  "artist_sub",
   "playlist_create",
   "playlist_delete",
   "playlist_tracks",
@@ -110,6 +115,7 @@ const sessionRealIp = (): string => {
 
 /** 内存缓存 */
 let sessionCache: Record<string, string> | null = null;
+let sessionVersion = 0;
 let anonymousSessionPromise: Promise<void> | null = null;
 
 const syncDeviceState = (session: Record<string, string>): void => {
@@ -126,6 +132,7 @@ const loadSession = (): Record<string, string> => {
 };
 
 const persistSession = (cookies: Record<string, string>): void => {
+  sessionVersion++;
   sessionCache = cookies;
   syncDeviceState(cookies);
   saveSessionCookies("netease", cookies);
@@ -150,6 +157,7 @@ export const mergeNeteaseCookies = (patch: Record<string, string>): void => {
 };
 
 export const clearNeteaseCookies = (): void => {
+  sessionVersion++;
   sessionCache = {};
   setAnonymousToken("");
   resetXeapiKey();
@@ -243,7 +251,12 @@ export const callNetease = async (
     query.realIP = sessionRealIp();
   }
 
+  const requestSessionVersion = sessionVersion;
   const res = await fn(query, createRequest);
+  // 旧会话的响应不能覆盖登出或切换账号后的凭据与缓存。
+  if (requestSessionVersion !== sessionVersion) {
+    return { status: res.status, body: res.body };
+  }
 
   // 仅登录态变更接口才把响应 cookie 写回 SQLite
   if (SESSION_MUTATING.has(name)) {
@@ -260,7 +273,9 @@ export const callNetease = async (
   }
 
   const value = { status: res.status, body: res.body };
-  if (cacheable && res.status === 200) cacheSet(cacheKey, value);
+  if (cacheable && res.status === 200 && Number((res.body as { code?: unknown }).code) === 200) {
+    cacheSet(cacheKey, value);
+  }
 
   return value;
 };

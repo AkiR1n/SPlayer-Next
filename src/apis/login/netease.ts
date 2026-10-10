@@ -3,12 +3,13 @@
  */
 
 import type { UserProfile } from "@/types/user";
-import { netease as neteaseApi } from "@/apis/netease";
+import { NeteaseApiError, netease as neteaseApi } from "@/apis/netease";
 import type { QrLoginAdapter, QrLoginState } from "./platform";
 
 interface LoginStatusBody {
   code?: number | string;
   data?: {
+    code?: number | string;
     profile?: Partial<UserProfile> & { userId?: number };
     account?: { id?: number };
   };
@@ -85,7 +86,10 @@ export const neteaseQrLoginAdapter: QrLoginAdapter = {
  */
 export const fetchLoginStatus = async (): Promise<UserProfile | null> => {
   const body = await neteaseApi.login_status<LoginStatusBody>({ timestamp: Date.now() });
-  if (body?.code !== undefined && Number(body.code) !== 200) return null;
+  const code = Number(body?.code ?? body?.data?.code ?? 200);
+  if (code !== 200) {
+    throw new NeteaseApiError("网易云登录状态查询失败", code, body);
+  }
   const account = body?.data?.account ?? body?.account;
   const profile = body?.data?.profile ?? body?.profile;
 

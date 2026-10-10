@@ -1,6 +1,7 @@
 import type { Album, Artist, Playlist } from "@shared/types/player";
 import type { UserSubcount } from "@/types/user";
-import { netease as neteaseApi } from "@/apis/netease";
+import { NeteaseApiError, netease as neteaseApi } from "@/apis/netease";
+import { isExplicitNeteaseAuthFailure } from "@/apis/neteaseAuth";
 import { ensureOk, toAlbum, toArtist, toPlaylist, toSubcount } from "@/utils/format/netease";
 
 const PAGE_SIZE = 50;
@@ -28,37 +29,40 @@ const fetchAllPages = async <Item>(
 
 /** 用户全部歌单 */
 export const fetchUserPlaylists = async (uid: number, total?: number): Promise<Playlist[]> => {
-  const body = await neteaseApi.user_playlist({
-    uid,
-    limit: total && total > 0 ? total : 1000,
-    offset: 0,
-  });
+  const body = ensureOk(
+    await neteaseApi.user_playlist({
+      uid,
+      limit: total && total > 0 ? total : 1000,
+      offset: 0,
+    }),
+  );
   return (body?.playlist ?? []).map(toPlaylist);
 };
 
 /** 用户订阅计数 */
 export const fetchSubcount = async (): Promise<UserSubcount> => {
-  const body = await neteaseApi.user_subcount();
+  const body = ensureOk(await neteaseApi.user_subcount());
   return toSubcount(body ?? {});
 };
 
 /** 用户喜欢歌曲 id 列表 */
 export const fetchLikelist = async (uid: number): Promise<string[]> => {
-  const body = await neteaseApi.likelist({ uid });
-  return ((body?.ids as number[]) ?? []).map(String);
+  const body = ensureOk(await neteaseApi.likelist({ uid }));
+  if (!Array.isArray(body.ids)) throw new Error("网易云红心列表响应缺少 ids");
+  return (body.ids as number[]).map(String);
 };
 
 /** 用户收藏专辑 */
 export const fetchUserAlbums = (): Promise<Album[]> =>
   fetchAllPages(async (offset, limit) => {
-    const body = await neteaseApi.album_sublist({ limit, offset });
+    const body = ensureOk(await neteaseApi.album_sublist({ limit, offset }));
     return { data: body?.data, hasMore: body?.hasMore };
   }, toAlbum);
 
 /** 用户收藏歌手 */
 export const fetchUserArtists = (): Promise<Artist[]> =>
   fetchAllPages(async (offset, limit) => {
-    const body = await neteaseApi.artist_sublist({ limit, offset });
+    const body = ensureOk(await neteaseApi.artist_sublist({ limit, offset }));
     return { data: body?.data, hasMore: body?.hasMore };
   }, toArtist);
 
@@ -71,14 +75,25 @@ export const fetchUserArtists = (): Promise<Artist[]> =>
 export const toggleLikeSong = async (trackId: string, like: boolean): Promise<void> => {
   try {
     const res = await neteaseApi.like_v1<{ code?: number }>({ id: trackId, like });
-    if (res && (res.code === 200 || Number(res.code) === 200)) return;
-  } catch {}
+    if (Number(res?.code) === 200) return;
+    if (Number(res?.code) >= 500) {
+      throw new NeteaseApiError("网易云红心请求失败", Number(res.code), res);
+    }
+  } catch (err) {
+    if (
+      err instanceof NeteaseApiError &&
+      (isExplicitNeteaseAuthFailure(err) ||
+        Number((err.body as { code?: unknown } | undefined)?.code ?? err.status) >= 500)
+    ) {
+      throw err;
+    }
+  }
   ensureOk(await neteaseApi.like({ id: trackId, like }));
 };
 
 /** 用户等级 */
 export const fetchUserLevel = async (): Promise<number | undefined> => {
-  const body = await neteaseApi.user_level();
+  const body = ensureOk(await neteaseApi.user_level());
   const level = body?.data?.level;
   return typeof level === "number" ? level : undefined;
 };
