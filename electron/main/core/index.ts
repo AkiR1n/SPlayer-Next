@@ -27,6 +27,7 @@ import { startServer, stopServer } from "@main/server";
 import { startMcpServer, stopMcpServer } from "@main/services/mcp/http";
 import { initUpdater, disposeUpdater } from "@main/services/updater";
 import { coreLog, initLogger } from "@main/utils/logger";
+import { isAppQuitting } from "@main/utils/lifecycle";
 import {
   initOrpheusRegistration,
   extractOrpheusUrl,
@@ -110,11 +111,25 @@ export const initApp = (): void => {
       optimizer.watchWindowShortcuts(window);
     });
     // 注册 IPC
-    registerIpcHandlers();
+    let startupComplete = false;
+    registerIpcHandlers(() => {
+      if (startupComplete) return;
+      startupComplete = true;
+      setImmediate(() => {
+        if (isAppQuitting()) return;
+        void startServer();
+        void startMcpServer();
+        void pluginRegistry.checkAllUpdates();
+      });
+    });
     // 初始化数据库
     initDatabase();
     // 创建主窗口
-    createMainWindow();
+    const mainWindow = createMainWindow();
+    // 播放配置同步前准备系统媒体控件，对外服务等待启动层退出。
+    mainWindow.once("show", () => {
+      initMedia();
+    });
     // 注册 orpheus 协议并处理冷启动唤起
     initOrpheusRegistration();
     const coldOrpheusUrl = extractOrpheusUrl(process.argv);
@@ -125,7 +140,6 @@ export const initApp = (): void => {
     void initSongCache();
     // 启动下载服务
     void initDownload();
-    initMedia();
     // 初始化 Last.fm 集成
     initLastfm();
     // 初始化插件系统
@@ -136,11 +150,6 @@ export const initApp = (): void => {
     restoreLyricWindows();
     // 注册全局快捷键
     initGlobalHotkey();
-    // 启动外部 API 服务
-    void startServer();
-    // 启动 AI 集成 MCP 服务
-    void startMcpServer();
-    // 初始化自动更新
     initUpdater();
     // 周期记录各进程内存
     setTimeout(logProcessMemory, MEMORY_LOG_FIRST_DELAY_MS);

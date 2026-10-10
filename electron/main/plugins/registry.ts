@@ -186,8 +186,6 @@ class PluginRegistry extends EventEmitter {
     for (const rt of this.runtimes.values()) {
       if (rt.enabled) this.start(rt).catch(() => {});
     }
-    // 启动时静默检查一遍更新（不阻塞启动）
-    void this.checkAllUpdates();
     coreLog.info(`[plugin] registry initialized, ${this.runtimes.size} plugins loaded`);
   }
 

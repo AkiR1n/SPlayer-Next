@@ -184,6 +184,7 @@ const showComments = (): void => {
 <template>
   <Teleport to="body">
     <Transition
+      appear
       enter-active-class="transition-transform duration-500 ease-[cubic-bezier(0.7,0,0.3,1)]"
       leave-active-class="transition-transform duration-500 ease-[cubic-bezier(0.7,0,0.3,1)]"
       enter-from-class="translate-y-full"

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useSettingsDialog } from "@/settings/useSettingsDialog";
 
+const SettingsContent = defineAsyncComponent(() => import("./SettingsContent.vue"));
+
 const dialog = useSettingsDialog();
 const { open } = dialog;
 

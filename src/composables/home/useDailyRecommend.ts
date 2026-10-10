@@ -74,10 +74,10 @@ export const useDailyRecommend = () => {
   const previewTracks = computed<Track[]>(() => {
     const current = slide.value;
     if (!current) return [];
-    return [
-      ...current.tracks.slice(current.featuredIndex),
-      ...current.tracks.slice(0, current.featuredIndex),
-    ].slice(0, HERO_PREVIEW_COUNT);
+    return Array.from(
+      { length: Math.min(HERO_PREVIEW_COUNT, current.tracks.length) },
+      (_, index) => current.tracks[(current.featuredIndex + index) % current.tracks.length],
+    );
   });
 
   /** 构建单个来源，失败返回 null */
