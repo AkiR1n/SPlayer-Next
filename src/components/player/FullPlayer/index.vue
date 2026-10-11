@@ -43,7 +43,10 @@ const { snapToNearestLyric } = useProgressLyric();
 
 const lyricRef = ref<InstanceType<typeof Lyrics>>();
 const lyricMounted = ref(false);
+const playerVisible = ref(false);
+const visualizerMounted = ref(false);
 const initialLyricTimeMs = ref(0);
+let visualizerMountFrame = 0;
 
 /** 加载中的歌曲使用队列当前项兜底，避免全屏播放器出现空白。 */
 const displayTrack = computed(() => media.track ?? status.currentTrack);
@@ -59,28 +62,39 @@ const { start: startTick, stop: stopTick } = usePlaybackTime((currentMs) => {
 
 /** 展开后 */
 const onAfterEnter = () => {
-  nextTick(() => {
-    lyricRef.value?.resume();
-    startTick();
-  });
-};
-
-/** 展开动画开始时就挂载歌词，给引擎预留初始化时间 */
-const onBeforeEnter = () => {
   initialLyricTimeMs.value = getCurrentTime() + status.lyricOffsetMs;
   lyricMounted.value = true;
+  nextTick(() => {
+    if (!isPlayerExpanded.value) return;
+    lyricRef.value?.setCurrentTime(getCurrentTime() + status.lyricOffsetMs);
+    lyricRef.value?.resume();
+    startTick();
+    // 将 WebGL 和频谱创建与歌词 DOM 测量错开
+    visualizerMountFrame = requestAnimationFrame(() => {
+      visualizerMountFrame = requestAnimationFrame(() => {
+        visualizerMountFrame = 0;
+        if (isPlayerExpanded.value) visualizerMounted.value = true;
+      });
+    });
+  });
 };
 
 /** 收起前 */
 const onBeforeLeave = () => {
+  cancelAnimationFrame(visualizerMountFrame);
+  visualizerMountFrame = 0;
   lyricRef.value?.freeze();
   stopTick();
 };
 
 /** 收起后 */
 const onAfterLeave = () => {
+  playerVisible.value = false;
   lyricMounted.value = false;
+  visualizerMounted.value = false;
 };
+
+onBeforeUnmount(() => cancelAnimationFrame(visualizerMountFrame));
 
 // 重新挂载时，刷新初始时间
 watch(hasLyric, (value) => {
@@ -190,7 +204,7 @@ const showComments = (): void => {
       enter-from-class="translate-y-full"
       leave-to-class="translate-y-full"
       @after-enter="onAfterEnter"
-      @before-enter="onBeforeEnter"
+      @before-enter="playerVisible = true"
       @before-leave="onBeforeLeave"
       @after-leave="onAfterLeave"
     >
@@ -203,14 +217,14 @@ const showComments = (): void => {
         @mouseleave="onPlayerMouseLeave"
       >
         <!-- 背景 -->
-        <PlayerBackground />
+        <PlayerBackground :visible="playerVisible" :active="visualizerMounted" />
         <!-- 全屏封面 -->
         <div v-if="fullscreenCover" class="absolute inset-y-0 left-0 w-[60%]">
           <PlayerCover fullscreen />
         </div>
         <!-- 底部频谱 -->
         <BottomSpectrum
-          v-if="isPlayerExpanded && settings.player.enableSpectrum"
+          v-if="isPlayerExpanded && visualizerMounted && settings.player.enableSpectrum"
           :show="isPlaying && immersive"
         />
         <!-- 顶/底栏渐变遮罩（全屏封面模式） -->
