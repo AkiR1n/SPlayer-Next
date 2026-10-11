@@ -42,8 +42,8 @@ importers:
         specifier: ^4.13.0
         version: 4.13.0
       lyric-kit:
-        specifier: ^0.6.0
-        version: 0.6.0
+        specifier: ^0.6.1
+        version: 0.6.1
       undici:
         specifier: ^8.10.0
         version: 8.10.0
@@ -3849,8 +3849,8 @@ packages:
   lyric-dom@0.2.0:
     resolution: {integrity: sha512-ubIRNnLL0vnTn0LtLsPIq8sjpEG3jMspQPzi5gQPIGFFrYedwxyTzZUho6lWCV2Zzz6aedwmED7ZDRGA0iICLg==}
 
-  lyric-kit@0.6.0:
-    resolution: {integrity: sha512-kINhwn8MHU8dr1sG0wd26EumsC6xUSxABNilHzTK0vUbbuZ91Sa6jVEn/USok+vNi4qfAgtMUz0YC9B0wpZP2g==}
+  lyric-kit@0.6.1:
+    resolution: {integrity: sha512-/Qi3kJtLzlw5+oi5yEPpBPSzK5FW0CFHZCXtApvnv6QOjUeDnrF9p2G3heKCVesLWJi122YmWWNgVAdZhiljlA==}
 
   magic-regexp@0.10.0:
     resolution: {integrity: sha512-Uly1Bu4lO1hwHUW0CQeSWuRtzCMNO00CmXtS8N6fyvB3B979GOEEeAkiTUDsmbYLAbvpUS/Kt5c4ibosAzVyVg==}
@@ -8977,7 +8977,7 @@ snapshots:
 
   lyric-dom@0.2.0: {}
 
-  lyric-kit@0.6.0: {}
+  lyric-kit@0.6.1: {}
 
   magic-regexp@0.10.0:
     dependencies:
