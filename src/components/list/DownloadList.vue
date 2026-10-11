@@ -77,7 +77,8 @@ const isPlaying = (task: DownloadTask): boolean =>
 /** 在可播放队列中定位并播放 */
 const playTask = (task: DownloadTask): void => {
   const index = playableTasks.value.findIndex((item) => item.taskId === task.taskId);
-  if (index >= 0) void player.playFrom(playableTasks.value.map(toLocalTrack), index);
+  if (index >= 0)
+    void player.playFrom(playableTasks.value.map(toLocalTrack), { startIndex: index });
 };
 
 /** 序号位点击：正在播放则切换，否则播放 */
@@ -114,7 +115,7 @@ const confirmDelete = async (task: DownloadTask): Promise<void> => {
 /** 播放全部已完成（供下载页顶栏调用） */
 const playAll = (): void => {
   if (playableTasks.value.length > 0) {
-    void player.playFrom(playableTasks.value.map(toLocalTrack), 0);
+    void player.playFrom(playableTasks.value.map(toLocalTrack));
   }
 };
 

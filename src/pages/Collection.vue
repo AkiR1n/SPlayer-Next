@@ -145,7 +145,7 @@ const playbackContext = computed<PlaybackContext | undefined>(() => {
 
 const handlePlayAll = () => {
   if (!collection.value?.tracks.length) return;
-  player.playFrom(collection.value.tracks, 0, playbackContext.value);
+  player.playFrom(collection.value.tracks, { context: playbackContext.value });
 };
 
 const searchQuery = ref("");

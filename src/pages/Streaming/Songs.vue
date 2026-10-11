@@ -28,7 +28,7 @@ onMounted(() => {
 
 const handlePlayAll = (): void => {
   if (songs.value.length === 0) return;
-  player.playFrom(songs.value, 0);
+  player.playFrom(songs.value);
 };
 </script>
 

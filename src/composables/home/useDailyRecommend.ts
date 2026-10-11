@@ -117,7 +117,7 @@ export const useDailyRecommend = () => {
       toast.warning(t("home.hero.empty"));
       return;
     }
-    await player.playFrom(current.tracks, current.featuredIndex);
+    await player.playFrom(current.tracks, { startIndex: current.featuredIndex });
   };
 
   /** 添加到队列：整组插入当前曲目之后 */

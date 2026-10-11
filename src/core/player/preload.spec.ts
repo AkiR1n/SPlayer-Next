@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Track } from "@shared/types/player";
+import type { PlaybackContext, Track } from "@shared/types/player";
 
 const mocks = vi.hoisted(() => {
   const track = { id: "next", source: "netease", title: "Next", artists: [], duration: 1000 };
@@ -573,5 +573,99 @@ describe("交叉过渡的队列交接", () => {
     finishStop({ success: true });
     await stopping;
     expect(mocks.status.state).toBe("stopped");
+  });
+});
+
+describe("列表播放起点", () => {
+  const tracks = ["a", "b", "c"].map((id) => ({ ...mocks.track, id }) as Track);
+  const context: PlaybackContext = {
+    originId: "playlist",
+    originType: "playlist",
+    originName: "测试歌单",
+  };
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    vi.doUnmock("@/stores/queue");
+    vi.doUnmock("@/stores/status");
+    vi.doMock("localforage", () => ({
+      default: { createInstance: () => ({ setItem: vi.fn().mockResolvedValue(null) }) },
+    }));
+    const { createPinia, setActivePinia } = await import("pinia");
+    setActivePinia(createPinia());
+    mocks.media.track = { ...mocks.track, id: "old" };
+    mocks.consume.mockReturnValue(null);
+    mocks.resolve.mockResolvedValue({
+      source: "https://music/selected",
+      fromCache: false,
+      provider: "official",
+    });
+    mocks.load.mockResolvedValue({
+      success: true,
+      data: { detail: {}, mediaInfo: { duration: 1000 } },
+    });
+    Object.assign(window, {
+      api: {
+        player: {
+          load: mocks.load,
+          stop: vi.fn().mockResolvedValue({ success: true }),
+          syncPlayMode: vi.fn(),
+        },
+      },
+    });
+  });
+
+  it.each([
+    [0, "a"],
+    [0.5, "b"],
+    [0.99, "c"],
+  ] as const)("随机播放全部可从列表任意位置开始，随机值=%s", async (random, selectedId) => {
+    const { useStatusStore } = await import("@/stores/status");
+    const queue = await import("@/stores/queue");
+    const { playFrom, nextTrack, setShuffleMode } = await import("./index");
+    const status = useStatusStore();
+    status.shuffleMode = "on";
+    vi.spyOn(Math, "random").mockReturnValue(random);
+
+    await playFrom(tracks, { context });
+
+    expect(mocks.media.track.id).toBe(selectedId);
+    expect(status.currentPlaybackContext).toEqual(context);
+    expect(queue.queue.value[0].id).toBe(selectedId);
+    expect(queue.queue.value.map(({ id }) => id).sort()).toEqual(["a", "b", "c"]);
+    await nextTrack();
+    expect(mocks.media.track.id).not.toBe(selectedId);
+    setShuffleMode("off");
+    expect(queue.queue.value.map(({ id }) => id)).toEqual(["a", "b", "c"]);
+    expect(status.currentTrack?.id).toBe(mocks.media.track.id);
+    expect(status.currentPlaybackContext).toEqual(context);
+  });
+
+  it.each([0, 2])("随机模式手动选歌保留指定起点，索引=%s", async (index) => {
+    const { useStatusStore } = await import("@/stores/status");
+    const { playFrom } = await import("./index");
+    const status = useStatusStore();
+    status.shuffleMode = "on";
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+    await playFrom(tracks, { startIndex: index, context });
+
+    expect(mocks.media.track.id).toBe(tracks[index].id);
+    expect(status.currentTrack?.id).toBe(tracks[index].id);
+    expect(status.currentPlaybackContext).toEqual(context);
+  });
+
+  it("顺序播放全部从第一首开始，开启随机后继续当前歌曲", async () => {
+    const { useStatusStore } = await import("@/stores/status");
+    const { playFrom, setShuffleMode } = await import("./index");
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+
+    await playFrom(tracks);
+    expect(mocks.media.track.id).toBe("a");
+    expect(useStatusStore().playIndex).toBe(0);
+    setShuffleMode("on");
+    expect(useStatusStore().currentTrack?.id).toBe("a");
+    expect(mocks.load).toHaveBeenCalledOnce();
   });
 });

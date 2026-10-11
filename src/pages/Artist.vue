@@ -149,7 +149,7 @@ const playbackContext = computed<PlaybackContext>(() => ({
 
 const handlePlayAll = () => {
   if (!artist.value?.tracks.length) return;
-  player.playFrom(artist.value.tracks, 0, playbackContext.value);
+  player.playFrom(artist.value.tracks, { context: playbackContext.value });
 };
 
 /** 收藏歌手仅支持网易云 */

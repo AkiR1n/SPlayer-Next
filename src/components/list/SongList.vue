@@ -283,7 +283,7 @@ const onTrackDblClick = (item: Track, index: number): void => {
     void player.playNow(item, props.playbackContext);
     return;
   }
-  void player.playFrom(sortedItems.value, index, props.playbackContext);
+  void player.playFrom(sortedItems.value, { startIndex: index, context: props.playbackContext });
 };
 
 const emit = defineEmits<{
