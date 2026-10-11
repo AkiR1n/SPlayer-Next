@@ -228,6 +228,19 @@ const lyricCategory: SettingCategory = {
       id: "lyricDisplay",
       items: [
         {
+          key: "lyricAlignment",
+          type: "select",
+          binding: { store: "settings", path: "lyric.alignment" },
+          options: [
+            { value: "auto", labelKey: "settings.lyricAlignment.auto" },
+            { value: "left", labelKey: "settings.lyricAlignment.left" },
+            { value: "center", labelKey: "settings.lyricAlignment.center" },
+            { value: "right", labelKey: "settings.lyricAlignment.right" },
+          ],
+          defaultValue: "auto",
+          visible: () => lyricEngine() === "physics",
+        },
+        {
           key: "enableScale",
           type: "switch",
           binding: { store: "settings", path: "lyric.enableScale" },

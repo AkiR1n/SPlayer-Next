@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { LyricLine } from "@shared/types/lyrics";
-import { DEFAULTS, type SpringParams, LyricRenderer } from "lyric-dom";
+import { DEFAULTS, type LyricAlignment, type SpringParams, LyricRenderer } from "lyric-dom";
 import "lyric-dom/renderer.css";
 import LyricCredit from "./LyricCredit.vue";
 
@@ -16,6 +16,8 @@ const props = withDefaults(
      * @default 0.35
      */
     alignPosition?: number;
+    /** 歌词水平对齐方式，auto 按声部自动布局 */
+    alignment?: LyricAlignment;
     /**
      * 逐字掩码渐变宽度比例（相对于文字高度）
      * @range 0 ~ 1（0 = 硬切，1 = 全字高渐变）
@@ -101,6 +103,7 @@ const props = withDefaults(
   {
     playing: false,
     alignPosition: DEFAULTS.alignPosition,
+    alignment: DEFAULTS.alignment,
     wordFadeWidth: DEFAULTS.wordFadeWidth,
     scrollResetDelay: DEFAULTS.scrollResetDelay,
     minInterludeGap: DEFAULTS.minInterludeGap,
@@ -217,6 +220,11 @@ watch(
 watch(
   () => props.wordFadeWidth,
   (v) => renderer?.setConfig({ wordFadeWidth: v }),
+);
+
+watch(
+  () => props.alignment,
+  (v) => renderer?.setConfig({ alignment: v }),
 );
 
 watch(

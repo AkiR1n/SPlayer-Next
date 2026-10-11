@@ -106,7 +106,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
     "localforage": "^1.10.0",
-    "lyric-dom": "^0.2.0",
+    "lyric-dom": "^0.2.1",
     "marked": "^18.0.9",
     "pinia": "^4.0.2",
     "pinia-plugin-persistedstate": "^4.7.1",

@@ -1230,6 +1230,14 @@
       "label": "Lyric Scale",
       "description": "Scale down inactive lines slightly to highlight current line"
     },
+    "lyricAlignment": {
+      "label": "Lyric Alignment",
+      "description": "Automatically place singers on opposite sides, or align all lines left, center, or right",
+      "auto": "Auto",
+      "left": "Left",
+      "center": "Center",
+      "right": "Right"
+    },
     "bgAlwaysBelow": {
       "label": "Background Lyrics Always Below",
       "description": "Always place background vocal lines below the main lyric line"
@@ -1287,7 +1295,7 @@
     },
     "inactiveAlpha": {
       "label": "Inactive Opacity",
-      "description": "Base opacity for non-active lines"
+      "description": "Base opacity for non-active lines, also applied to translations and romanizations"
     },
     "desktopLyricEnabled": {
       "label": "Enable Desktop Lyric",

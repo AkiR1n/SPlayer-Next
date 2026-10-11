@@ -1218,6 +1218,14 @@
       "label": "歌词缩放",
       "description": "聚焦播放行，非激活行轻微缩小"
     },
+    "lyricAlignment": {
+      "label": "歌词水平对齐",
+      "description": "自动按演唱声部分左右显示，也可统一靠左、居中或靠右",
+      "auto": "自动",
+      "left": "靠左",
+      "center": "居中",
+      "right": "靠右"
+    },
     "bgAlwaysBelow": {
       "label": "背景歌词置于下方",
       "description": "始终将背景和声歌词显示在主歌词行下方"
@@ -1275,7 +1283,7 @@
     },
     "inactiveAlpha": {
       "label": "非激活行透明度",
-      "description": "非当前行的基础透明度"
+      "description": "非当前行的基础透明度，同时影响翻译和音译的透明度"
     },
     "desktopLyricEnabled": {
       "label": "开启桌面歌词",
