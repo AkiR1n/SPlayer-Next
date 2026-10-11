@@ -279,7 +279,7 @@ export const scheduleNextTrackPreload = (): void => {
         if (cachedPath) source = { source: cachedPath, fromCache: true, provider: "cache" };
       }
       let preparedId: string | undefined;
-      if (source.provider === "local" || source.fromCache) {
+      if (source.provider === "local" || source.provider === "download" || source.fromCache) {
         const ready = await window.api.player.prepareNext(
           id,
           source.source,

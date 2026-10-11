@@ -535,6 +535,7 @@
       "play": "播放",
       "playNext": "下一首播放",
       "showInExplorer": "打开文件位置",
+      "copyFile": "复制歌曲文件",
       "copyPath": "复制文件路径",
       "editTags": "编辑元数据",
       "download": "下载歌曲",

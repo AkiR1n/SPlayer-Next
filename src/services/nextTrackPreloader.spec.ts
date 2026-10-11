@@ -77,6 +77,26 @@ describe("下一曲真实预载", () => {
     preloader.disposeNextTrackPreload();
   });
 
+  it("已下载歌曲直接准备原生预载槽位", async () => {
+    mocks.resolve.mockResolvedValueOnce({
+      source: "C:/downloads/next.flac",
+      provider: "download",
+      fromCache: false,
+    });
+    const preloader = await import("./nextTrackPreloader");
+    preloader.scheduleNextTrackPreload();
+    await flushPromises();
+    expect(mocks.prepare).toHaveBeenCalledWith(
+      expect.any(String),
+      "C:/downloads/next.flac",
+      undefined,
+      "standard",
+    );
+    expect(preloader.consumePreloadedTrack(mocks.candidate.track as Track)?.preparedId).toEqual(
+      expect.any(String),
+    );
+  });
+
   it("解析返回空值后允许同一候选重新预载", async () => {
     mocks.resolve.mockResolvedValueOnce(null).mockResolvedValueOnce({
       source: "C:/cache/next.bin",

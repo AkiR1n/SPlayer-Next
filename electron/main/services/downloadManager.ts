@@ -25,6 +25,7 @@ import type {
   DownloadResolvePayload,
   DownloadResolution,
   DownloadTask,
+  DownloadTrackIdentity,
   EnqueueResult,
 } from "@shared/types/download";
 
@@ -456,6 +457,26 @@ export const clearFinished = (): void => db.clearFinished();
 
 /** 列出全部任务 */
 export const list = (): DownloadTask[] => db.listAll();
+
+/**
+ * 查找仍存在的已下载文件，失效记录继续尝试下一条
+ * @param track - 待播放歌曲的身份
+ * @returns 最近完成且仍存在的非空文件路径，未命中返回 null
+ */
+export const lookupDownloadedFile = async (
+  track: DownloadTrackIdentity,
+): Promise<string | null> => {
+  if (track.source === "local") return null;
+  for (const filePath of db.listCompletedPaths(track)) {
+    try {
+      const stat = await fsp.stat(filePath);
+      if (stat.isFile() && stat.size > 0) return filePath;
+    } catch {
+      // 下载文件可能已被用户移动或删除，保留记录供下载页查看
+    }
+  }
+  return null;
+};
 
 /** 启动初始化 */
 export const init = async (): Promise<void> => {

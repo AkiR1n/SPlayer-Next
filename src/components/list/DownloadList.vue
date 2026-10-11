@@ -204,17 +204,15 @@ defineExpose({ playAll });
                 class="text-sm mt-1 truncate flex items-center gap-1"
                 :class="isPlaying(item) ? 'text-primary/70' : 'text-on-surface-variant'"
               >
-                <span
+                <STag
                   v-if="item.track.quality"
-                  class="shrink-0 px-1 rounded text-[10px] leading-[18px] font-bold border border-solid"
-                  :class="
-                    isLosslessQuality(item.track.quality)
-                      ? 'text-amber-500 border-amber-500/40'
-                      : 'text-on-surface-variant border-on-surface-variant/40'
-                  "
+                  :type="isLosslessQuality(item.track.quality) ? 'warning' : 'default'"
+                  variant="outline"
+                  size="tiny"
+                  class="shrink-0"
                 >
                   {{ getQualityLabel(item.track.quality) }}
-                </span>
+                </STag>
                 <span class="truncate">{{ artistText(item) }}</span>
               </div>
             </div>

@@ -5,6 +5,7 @@ const SettingsContent = defineAsyncComponent(() => import("./SettingsContent.vue
 
 const dialog = useSettingsDialog();
 const { open } = dialog;
+const { t } = useI18n();
 
 const unsubscribe = window.api.system.onOpenSettings(({ category, highlight }) => {
   dialog.show(category, highlight);
@@ -20,6 +21,14 @@ onBeforeUnmount(() => unsubscribe());
     height="75vh"
     destroy-on-close
   >
-    <SettingsContent class="h-full" />
+    <Suspense>
+      <SettingsContent class="h-full" />
+      <template #fallback>
+        <div class="h-full flex items-center justify-center gap-2 text-on-surface-variant">
+          <SLoading class="size-5 text-primary" />
+          {{ t("common.loading") }}
+        </div>
+      </template>
+    </Suspense>
   </SDialog>
 </template>

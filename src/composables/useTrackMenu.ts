@@ -7,6 +7,7 @@ import * as player from "@/core/player";
 import { useSettingsStore } from "@/stores/settings";
 import { usePluginsStore } from "@/stores/plugins";
 import { useStatusStore } from "@/stores/status";
+import { useDownloadStore } from "@/stores/download";
 import { useCopyText } from "@/composables/useCopyText";
 import { toast } from "@/composables/useToast";
 import { buildDownloadQualityItems } from "@/composables/useDownload";
@@ -64,6 +65,7 @@ export const useTrackMenu = (
   const status = useStatusStore();
   const settings = useSettingsStore();
   const plugins = usePluginsStore();
+  const download = useDownloadStore();
   const { copy } = useCopyText();
   const isPlaylist = options.collectionType === "playlist";
   const isCloudView = options.collectionType === "cloud";
@@ -98,6 +100,13 @@ export const useTrackMenu = (
         icon: markRaw(IconFolderOpen),
         separator: true,
         show: isLocal,
+      },
+      {
+        key: "copyFile",
+        label: t("songList.context.copyFile"),
+        icon: markRaw(IconCopy),
+        separator: !isLocal,
+        show: isLocal || (!!track.value && download.isDownloaded(track.value)),
       },
       {
         key: "copyPath",
@@ -242,6 +251,15 @@ export const useTrackMenu = (
       case "copyPath":
         if (current.cueAudioPath ?? current.path)
           await copy((current.cueAudioPath ?? current.path)!);
+        break;
+      case "copyFile":
+        try {
+          const copied = await window.api.system.copyTrackFile(toRaw(current));
+          if (copied) toast.success(t("common.copied"));
+          else toast.error(t("common.copyFailed"));
+        } catch {
+          toast.error(t("common.copyFailed"));
+        }
         break;
       case "removeFromCollection":
         options.onRemove?.(current);

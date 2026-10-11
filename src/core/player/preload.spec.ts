@@ -126,6 +126,45 @@ describe("切歌消费真实预载", () => {
     });
   });
 
+  it.each([false, true])("下载文件失效后只换源一次，预载=%s", async (preloaded) => {
+    mocks.status.currentTrack = mocks.track;
+    const downloaded = {
+      source: "C:/downloads/next.flac",
+      fromCache: false,
+      provider: "download",
+    };
+    mocks.consume.mockReturnValue(
+      preloaded
+        ? {
+            trackId: "next",
+            preparedId: "next-slot",
+            source: downloaded,
+          }
+        : null,
+    );
+    mocks.resolve.mockReset();
+    if (!preloaded) mocks.resolve.mockResolvedValueOnce(downloaded);
+    mocks.resolve.mockResolvedValueOnce({
+      source: "https://music/next",
+      fromCache: false,
+      provider: "official",
+    });
+    mocks.load.mockResolvedValueOnce({ success: false, error: "FILE_NOT_FOUND" });
+    const { playFrom } = await import("./index");
+    await playFrom([mocks.track as Track]);
+    expect(mocks.resolve).toHaveBeenLastCalledWith(
+      mocks.track,
+      expect.objectContaining({
+        skipDownloaded: true,
+        skipOfficialOnline: false,
+      }),
+    );
+    expect(mocks.load).toHaveBeenCalledTimes(2);
+    expect(mocks.load.mock.calls[1]?.[0]).toBe("https://music/next");
+    expect(mocks.media.track.source).toBe("netease");
+    expect(mocks.media.track.id).toBe("next");
+  });
+
   it.each(["NETWORK_ERROR", "NETWORK_TIMEOUT"])("%s 保留真实错误并停止自动跳曲", async (error) => {
     mocks.consume.mockReturnValue(null);
     mocks.resolve.mockResolvedValue({

@@ -10,7 +10,7 @@ import type {
   PluginMatchCoverArgs,
 } from "@shared/types/plugin";
 import type { HotkeyActionId, HotkeyBinding, HotkeyConflict } from "@shared/types/hotkey";
-import type { LoadOptions, TrackSource, TransitionPreference } from "@shared/types/player";
+import type { LoadOptions, Track, TrackSource, TransitionPreference } from "@shared/types/player";
 import type { StreamingServerInput } from "@shared/types/streaming";
 import type { RecognitionConfig, RecognitionEvent } from "@shared/types/recognition";
 import type { PlayEventInput, FavoriteEventInput } from "@shared/types/stats";
@@ -26,6 +26,7 @@ import type {
   PlaylistUpdateInput,
 } from "@shared/types/playlist";
 import type { CjkTransformMode } from "@shared/types/opencc";
+import type { DownloadTrackIdentity } from "@shared/types/download";
 
 /** 订阅主进程推送的事件 */
 const subscribe = <T>(channel: string, callback: (data: T) => void): (() => void) => {
@@ -184,6 +185,9 @@ const api = {
     toggleDevTools: () => ipcRenderer.invoke("system:toggleDevTools"),
     // 在文件管理器中显示文件
     showInExplorer: (filePath: string) => ipcRenderer.invoke("system:showInExplorer", filePath),
+    // 将本地或已下载歌曲复制到系统文件剪贴板
+    copyTrackFile: (track: Track): Promise<boolean> =>
+      ipcRenderer.invoke("system:copyTrackFile", track),
     // 打开日志目录
     openLogsDir: () => ipcRenderer.invoke("system:openLogsDir"),
     // 同步语言到主进程
@@ -499,6 +503,8 @@ const api = {
     clearFinished: () => ipcRenderer.invoke("download:clearFinished"),
     // 拉取全部任务
     list: () => ipcRenderer.invoke("download:list"),
+    lookup: (track: DownloadTrackIdentity): Promise<string | null> =>
+      ipcRenderer.invoke("download:lookup", track),
     // 选择下载目录
     pickDir: () => ipcRenderer.invoke("download:pickDir"),
     // 当前下载目录

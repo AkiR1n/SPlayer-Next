@@ -547,6 +547,7 @@
       "play": "Play",
       "playNext": "Play Next",
       "showInExplorer": "Open Location",
+      "copyFile": "Copy Song File",
       "copyPath": "Copy File Path",
       "editTags": "Edit Metadata",
       "download": "Download Song",

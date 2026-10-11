@@ -54,6 +54,8 @@ interface LoadRuntimeOptions {
 
 /** 单次音源兜底过程的重试状态 */
 interface SourceRetryState {
+  /** 已下载文件加载失败后不再重复命中 */
+  skipDownloaded: boolean;
   /** 是否已放弃官方在线接口，后续仅尝试插件 */
   skipOfficialOnline: boolean;
   /** 已尝试且需跳过的插件 ID */
@@ -221,6 +223,7 @@ export const load = async (
 
 /** 创建音源重试状态 */
 const createSourceRetryState = (): SourceRetryState => ({
+  skipDownloaded: false,
   skipOfficialOnline: false,
   skippedPluginIds: new Set<string>(),
 });
@@ -238,6 +241,7 @@ const resolveTrackSourceWithRetry = (
   resolveTrackSource(track, {
     silent: true,
     onError,
+    skipDownloaded: retry.skipDownloaded,
     skipOfficialOnline: retry.skipOfficialOnline,
     skipPluginIds: [...retry.skippedPluginIds],
   });
@@ -252,6 +256,10 @@ const markRetryableSourceFailure = (
   resolved: ResolvedTrackSource,
   retry: SourceRetryState,
 ): boolean => {
+  if (resolved.provider === "download" && !retry.skipDownloaded) {
+    retry.skipDownloaded = true;
+    return true;
+  }
   if (resolved.provider === "official" && !retry.skipOfficialOnline) {
     retry.skipOfficialOnline = true;
     return true;
@@ -310,15 +318,17 @@ const loadTrackSourceWithFallback = async (
       usingInitial &&
       !result.ok &&
       resolved.provider !== "local" &&
+      resolved.provider !== "download" &&
       (resolved.provider !== "cache" || Boolean(result.error && isSkippableError(result.error)))
     ) {
       continue;
     }
     const canRetry =
       !result.ok &&
-      result.error !== ErrorCode.NETWORK_ERROR &&
-      result.error !== ErrorCode.NETWORK_TIMEOUT &&
-      (retryOnAnyFailure || Boolean(result.error && isSkippableError(result.error))) &&
+      (resolved.provider === "download" ||
+        (result.error !== ErrorCode.NETWORK_ERROR &&
+          result.error !== ErrorCode.NETWORK_TIMEOUT &&
+          (retryOnAnyFailure || Boolean(result.error && isSkippableError(result.error))))) &&
       markRetryableSourceFailure(resolved, retry);
     if (canRetry) continue;
     return { status: "loaded", result, resolved };

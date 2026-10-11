@@ -1,5 +1,5 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
-import { PlayerApi, TrackSource } from "@shared/types/player";
+import { PlayerApi, Track, TrackSource } from "@shared/types/player";
 import {
   ConfigApi,
   ExternalApiStatus,
@@ -49,6 +49,7 @@ declare global {
         };
         toggleDevTools: () => Promise<void>;
         showInExplorer: (filePath: string) => Promise<void>;
+        copyTrackFile: (track: Track) => Promise<boolean>;
         openLogsDir: () => Promise<string>;
         setLocale: (locale: LocaleCode) => void;
         focusMainWindow: () => Promise<void>;

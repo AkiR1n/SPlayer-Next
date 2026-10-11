@@ -5,6 +5,7 @@ import type { SortField } from "@/types/list";
 import { useMediaStore } from "@/stores/media";
 import { useStatusStore } from "@/stores/status";
 import { useSettingsStore } from "@/stores/settings";
+import { useDownloadStore } from "@/stores/download";
 import { useTrackMenu } from "@/composables/useTrackMenu";
 import { useMultiSelect } from "@/composables/useMultiSelect";
 import { useDownload } from "@/composables/useDownload";
@@ -84,6 +85,7 @@ const route = useRoute();
 const media = useMediaStore();
 const status = useStatusStore();
 const settings = useSettingsStore();
+const downloadStore = useDownloadStore();
 const fav = useFavorite();
 
 const { isFloatingBar: isFloatingPlayerBar, PLAYER_BAR_GAP } = useFloatingPlayerBar();
@@ -611,29 +613,43 @@ defineExpose({
                     class="text-sm mt-1 truncate flex items-center gap-1"
                     :class="playingId === item.id ? 'text-primary/70' : 'text-on-surface-variant'"
                   >
-                    <span
+                    <STag
+                      v-if="downloadStore.isDownloaded(item)"
+                      type="primary"
+                      variant="soft"
+                      size="tiny"
+                      circle
+                      class="shrink-0"
+                    >
+                      <IconLucideCheck class="size-3" aria-hidden="true" />
+                    </STag>
+                    <STag
                       v-if="item.quality && !settings.preset.hideQualityTag"
-                      class="shrink-0 px-1 rounded text-[10px] leading-[18px] font-bold border border-solid"
-                      :class="
-                        isLosslessQuality(item.quality)
-                          ? 'text-amber-500 border-amber-500/40'
-                          : 'text-on-surface-variant border-on-surface-variant/40'
-                      "
+                      :type="isLosslessQuality(item.quality) ? 'warning' : 'default'"
+                      variant="outline"
+                      size="tiny"
+                      class="shrink-0"
                     >
                       {{ getQualityLabel(item.quality) }}
-                    </span>
-                    <span
+                    </STag>
+                    <STag
                       v-if="item.fee === 1 && !settings.preset.hideVipTag"
-                      class="shrink-0 px-1 rounded text-[10px] leading-[18px] font-bold border border-solid text-red-400 border-red-400/40"
+                      type="error"
+                      variant="outline"
+                      size="tiny"
+                      class="shrink-0"
                     >
                       VIP
-                    </span>
-                    <span
+                    </STag>
+                    <STag
                       v-else-if="item.fee === 4 && !settings.preset.hideVipTag"
-                      class="shrink-0 px-1 rounded text-[10px] leading-[18px] font-bold border border-solid text-red-400 border-red-400/40"
+                      type="error"
+                      variant="outline"
+                      size="tiny"
+                      class="shrink-0"
                     >
                       EP
-                    </span>
+                    </STag>
                     <span class="truncate">
                       <template v-for="(artist, i) in item.artists" :key="artist.id ?? i">
                         <span
