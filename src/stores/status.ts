@@ -22,7 +22,7 @@ export const useStatusStore = defineStore(
     const position = ref(0);
     /** 播放时长 */
     const duration = ref(0);
-    /** 音量 */
+    /** 音频线性增益 */
     const volume = ref(1);
     /** 当前音源 */
     const currentSource = ref<string | null>(null);
