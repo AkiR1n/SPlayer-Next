@@ -1086,7 +1086,8 @@
         "closePlayer": "关闭播放界面",
         "togglePlaylist": "展开 / 收起播放列表",
         "openSearch": "打开搜索",
-        "searchInPage": "页面内搜索"
+        "searchInPage": "页面内搜索",
+        "openSettings": "打开设置"
       }
     },
     "engine": {

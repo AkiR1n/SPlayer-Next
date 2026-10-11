@@ -1098,7 +1098,8 @@
         "closePlayer": "Close player view",
         "togglePlaylist": "Show / hide playlist",
         "openSearch": "Open search",
-        "searchInPage": "Search in page"
+        "searchInPage": "Search in page",
+        "openSettings": "Open settings"
       }
     },
     "engine": {
