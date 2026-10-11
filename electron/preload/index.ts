@@ -11,7 +11,11 @@ import type {
 } from "@shared/types/plugin";
 import type { HotkeyActionId, HotkeyBinding, HotkeyConflict } from "@shared/types/hotkey";
 import type { LoadOptions, Track, TrackSource, TransitionPreference } from "@shared/types/player";
-import type { StreamingServerInput } from "@shared/types/streaming";
+import type {
+  StreamingServerInput,
+  StreamingFavoriteChange,
+  StreamingSyncState,
+} from "@shared/types/streaming";
 import type { RecognitionConfig, RecognitionEvent } from "@shared/types/recognition";
 import type { PlayEventInput, FavoriteEventInput } from "@shared/types/stats";
 import type { TagEditRequest } from "@shared/types/tagEditor";
@@ -588,6 +592,41 @@ const api = {
     },
   },
   streaming: {
+    /**
+     * 获取服务端收藏状态
+     * @param serverId - 服务器 ID
+     * @param trackId - 服务端歌曲 ID
+     * @returns 收藏状态
+     */
+    getFavorite: (serverId: string, trackId: string) =>
+      ipcRenderer.invoke("streaming:getFavorite", serverId, trackId),
+    /**
+     * 更新服务端收藏状态
+     * @param serverId - 服务器 ID
+     * @param trackId - 服务端歌曲 ID
+     * @param favorite - 目标收藏状态
+     * @returns 服务端确认的状态
+     */
+    setFavorite: (serverId: string, trackId: string, favorite: boolean) =>
+      ipcRenderer.invoke("streaming:setFavorite", serverId, trackId, favorite),
+    /**
+     * 订阅单曲收藏变化
+     * @param callback - 变更回调
+     * @returns 取消订阅函数
+     */
+    onFavoriteChanged: (callback: (change: StreamingFavoriteChange) => void) => {
+      ipcRenderer.removeAllListeners("streaming:favoriteChanged");
+      return subscribe<StreamingFavoriteChange>("streaming:favoriteChanged", callback);
+    },
+    /**
+     * 订阅后台同步状态
+     * @param callback - 状态回调
+     * @returns 取消订阅函数
+     */
+    onSyncState: (callback: (state: StreamingSyncState) => void) => {
+      ipcRenderer.removeAllListeners("streaming:syncState");
+      return subscribe<StreamingSyncState>("streaming:syncState", callback);
+    },
     /** 读取不包含凭据的服务器视图 */
     loadServers: () => ipcRenderer.invoke("streaming:loadServers"),
     /**
@@ -659,15 +698,6 @@ const api = {
       ipcRenderer.invoke("streaming:getArtistAlbums", serverId, artistId),
     getArtistSongs: (serverId: string, artistId: string) =>
       ipcRenderer.invoke("streaming:getArtistSongs", serverId, artistId),
-    /**
-     * 请求主进程生成播放地址
-     * @param serverId - 服务器 ID
-     * @param trackId - 服务端歌曲 ID
-     * @param playSessionId - 播放会话 ID
-     * @returns 播放地址
-     */
-    getStreamUrl: (serverId: string, trackId: string, playSessionId?: string) =>
-      ipcRenderer.invoke("streaming:getStreamUrl", serverId, trackId, playSessionId),
     /**
      * 请求主进程读取歌词
      * @param serverId - 服务器 ID

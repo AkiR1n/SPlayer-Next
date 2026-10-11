@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
   lookup: vi.fn(),
   cacheLookup: vi.fn(),
-  streamUrl: vi.fn(),
   settings: {
     player: { songLevel: "hq", allowTrialPlay: false },
     system: { cache: { songCache: { enabled: false } } },
@@ -20,9 +19,6 @@ vi.mock("@/stores/settings", () => ({
 }));
 vi.mock("@/stores/plugins", () => ({ usePluginsStore: () => ({ list: [] }) }));
 vi.mock("@/stores/user", () => ({ useUserStore: () => ({ isLoggedIn: false }) }));
-vi.mock("@/stores/streaming", () => ({
-  useStreamingStore: () => ({ getStreamUrl: mocks.streamUrl }),
-}));
 vi.mock("@/apis/song/netease", () => ({ resolveNeteaseUrl: mocks.netease }));
 vi.mock("@/apis/song/qqmusic", () => ({ resolveQQMusicUrl: mocks.qqmusic }));
 vi.mock("@/apis/song/kugou", () => ({ resolveKugouUrl: mocks.kugou }));
@@ -42,6 +38,18 @@ beforeEach(() => {
 });
 
 describe("优先播放下载文件", () => {
+  it("远端流媒体只返回身份占位符，凭据和播放会话由主进程解析", async () => {
+    const result = await resolveTrackSource({
+      id: "server:remote",
+      source: "streaming",
+      serverId: "server",
+      originalId: "remote",
+      title: "歌曲",
+      artists: [],
+      duration: 1000,
+    });
+    expect(result?.source).toBe("streaming://server/remote");
+  });
   it("命中下载后跳过缓存和在线地址解析", async () => {
     mocks.settings.system.cache.songCache.enabled = true;
     mocks.lookup.mockResolvedValueOnce("C:/downloads/song.flac");
@@ -73,7 +81,6 @@ describe("优先播放下载文件", () => {
       serverId: "server",
       originalId: "remote",
     });
-    expect(mocks.streamUrl).not.toHaveBeenCalled();
   });
 
   it("下载查询异常时继续在线解析", async () => {

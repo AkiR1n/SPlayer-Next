@@ -154,7 +154,7 @@ export const peekPreparedTrack = (track: Track): NextTrackPreloadResult | null =
 };
 
 /**
- * 将备用槽位所有权交给在途交接，设置变更从下一次预载开始生效。
+ * 将备用槽位所有权交给在途交接，设置变更从下一次预载开始生效
  * @param track - 本次交接的目标曲目
  * @param expectedId - 后台通知对应的槽位标识
  * @returns 已接管的预载结果，迟到通知或槽位失效时返回 null
@@ -173,7 +173,7 @@ export const beginPreparedTransition = (
 };
 
 /**
- * 释放交接所有权，再按最新设置调度下一曲。
+ * 释放交接所有权，再按最新设置调度下一曲
  * @param id - 本次交接持有的槽位标识
  */
 export const finishPreparedTransition = (id: string): void => {
@@ -262,7 +262,6 @@ export const scheduleNextTrackPreload = (): void => {
       // 音源预拉取
       let source = await resolveTrackSource(candidateTrack, {
         silent: true,
-        streamingPlaySessionId: crypto.randomUUID(),
       });
       if (token !== currentToken) return;
       if (!source) {

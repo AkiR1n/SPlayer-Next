@@ -73,6 +73,7 @@ const loadArtist = async (): Promise<void> => {
 
   try {
     await loadArtistService(source, id, {
+      serverId: typeof route.query.serverId === "string" ? route.query.serverId : undefined,
       fallbackName: typeof route.query.name === "string" ? route.query.name : undefined,
       signal: myAbort.signal,
       onUpdate: (next) => {
@@ -377,7 +378,15 @@ const albumItems = computed<CoverItem[]>(() => {
               :items="albumItems"
               :padding-x="20"
               :padding-bottom="24"
-              @click="(item) => navigateToAlbum(item.title, { source, albumId: item.id })"
+              @click="
+                (item) =>
+                  navigateToAlbum(item.title, {
+                    source,
+                    albumId: item.id,
+                    serverId:
+                      typeof route.query.serverId === 'string' ? route.query.serverId : undefined,
+                  })
+              "
             />
           </div>
         </Transition>

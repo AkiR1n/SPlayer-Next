@@ -22,6 +22,10 @@ import { registerStreamingCoverProtocol } from "@main/services/streaming/coverPr
 import { invalidateStreamingSession } from "@main/services/streaming/adapters/resolve";
 import { cancelStreamingSync, queueStreamingSync } from "@main/services/streaming/sync";
 import type { StreamingServerInput } from "@shared/types/streaming";
+import { updateStreamingFavorite } from "@main/database/streaming/tracks";
+import { sendToMain } from "@main/utils/broadcast";
+import { recordStreamingStageFavorite } from "@main/services/streaming/snapshot";
+import { stopStreamingPlayer } from "./player";
 
 /** 注册流媒体 IPC 和封面协议 */
 export const registerStreamingIpc = (): void => {
@@ -33,13 +37,25 @@ export const registerStreamingIpc = (): void => {
   );
   ipcMain.handle(
     "streaming:updateServer",
-    (_event, serverId: string, input: StreamingServerInput) => {
+    async (_event, serverId: string, input: StreamingServerInput) => {
+      const previous = getStreamingConfig().servers.find((server) => server.id === serverId);
+      const identityChanged =
+        previous?.type !== input.type ||
+        previous?.url !== input.url.trim().replace(/\/+$/, "") ||
+        previous?.username !== input.username ||
+        Boolean(input.password);
+      cancelStreamingSync(serverId);
+      await stopStreamingPlayer(serverId);
+      const updated = updateStreamingServer(serverId, input);
       invalidateStreamingSession(serverId);
       cancelStreamingSync(serverId);
-      return updateStreamingServer(serverId, input);
+      if (identityChanged && isDbOpen()) deleteLibraryByServer(serverId);
+      return updated;
     },
   );
-  ipcMain.handle("streaming:removeServer", (_event, serverId: string) => {
+  ipcMain.handle("streaming:removeServer", async (_event, serverId: string) => {
+    cancelStreamingSync(serverId);
+    await stopStreamingPlayer(serverId);
     invalidateStreamingSession(serverId);
     cancelStreamingSync(serverId);
     removeStreamingServer(serverId);
@@ -56,8 +72,31 @@ export const registerStreamingIpc = (): void => {
   ipcMain.handle("streaming:connect", (_event, serverId: string) =>
     connectStreamingServer(serverId),
   );
-  ipcMain.handle("streaming:disconnect", (_event, serverId: string) =>
-    invalidateStreamingSession(serverId),
+  ipcMain.handle("streaming:disconnect", async (_event, serverId: string) => {
+    cancelStreamingSync(serverId);
+    await stopStreamingPlayer(serverId);
+    invalidateStreamingSession(serverId);
+  });
+  ipcMain.handle("streaming:getFavorite", async (_event, serverId: string, trackId: string) => {
+    const favorite = await withStreamingAdapter(serverId, (config, adapter) =>
+      adapter.getFavorite(config, trackId),
+    );
+    if (isDbOpen()) updateStreamingFavorite(serverId, trackId, favorite);
+    if (isDbOpen()) recordStreamingStageFavorite(serverId, trackId, favorite);
+    sendToMain("streaming:favoriteChanged", { serverId, trackId, favorite });
+    return favorite;
+  });
+  ipcMain.handle(
+    "streaming:setFavorite",
+    async (_event, serverId: string, trackId: string, value: boolean) => {
+      const favorite = await withStreamingAdapter(serverId, (config, adapter) =>
+        adapter.setFavorite(config, trackId, value),
+      );
+      if (isDbOpen()) updateStreamingFavorite(serverId, trackId, favorite);
+      if (isDbOpen()) recordStreamingStageFavorite(serverId, trackId, favorite);
+      sendToMain("streaming:favoriteChanged", { serverId, trackId, favorite });
+      return favorite;
+    },
   );
   ipcMain.handle("streaming:getSnapshot", (_event, serverId: string) =>
     getLibrarySnapshot(serverId),
@@ -81,13 +120,6 @@ export const registerStreamingIpc = (): void => {
   );
   ipcMain.handle("streaming:getArtistSongs", (_event, serverId: string, artistId: string) =>
     withStreamingAdapter(serverId, (config, adapter) => adapter.getArtistSongs(config, artistId)),
-  );
-  ipcMain.handle(
-    "streaming:getStreamUrl",
-    (_event, serverId: string, trackId: string, playSessionId?: string) =>
-      withStreamingAdapter(serverId, (config, adapter) =>
-        adapter.getStreamUrl(config, trackId, playSessionId),
-      ),
   );
   ipcMain.handle(
     "streaming:getLyrics",

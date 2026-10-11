@@ -63,6 +63,7 @@ const loadCollection = async (): Promise<void> => {
 
   try {
     await loadCollectionService(source, type, id, {
+      serverId: typeof route.query.serverId === "string" ? route.query.serverId : undefined,
       fallbackName: typeof route.query.name === "string" ? route.query.name : undefined,
       signal: myAbort.signal,
       onUpdate: (next) => {

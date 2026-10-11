@@ -4,6 +4,8 @@ import { useUserStore } from "@/stores/user";
 import { useSettingsStore } from "@/stores/settings";
 import { toast } from "@/composables/useToast";
 import i18n from "@/i18n";
+import { useStreamingStore } from "@/stores/streaming";
+import { useMediaStore } from "@/stores/media";
 
 /**
  * 记一次收藏变更
@@ -25,6 +27,16 @@ export const useFavorite = () => {
   const library = useLibraryStore();
   const user = useUserStore();
   const settings = useSettingsStore();
+  const streaming = useStreamingStore();
+  const media = useMediaStore();
+  watch(
+    () => media.track?.id,
+    () => {
+      if (media.track?.source === "streaming")
+        void streaming.refreshFavorite(media.track).catch(() => {});
+    },
+    { immediate: true },
+  );
   const t = (key: string): string => i18n.global.t(key);
 
   /**
@@ -48,6 +60,7 @@ export const useFavorite = () => {
     if (!track) return false;
     if (track.source === "local") return library.isLiked(track.id);
     if (track.source === "netease") return user.isLiked(track.id);
+    if (track.source === "streaming") return streaming.isFavorite(track);
     return false;
   };
 
@@ -60,6 +73,12 @@ export const useFavorite = () => {
     if (!track) return false;
     if (track.source === "local") return true;
     if (track.source === "netease") return user.isLoggedIn;
+    if (track.source === "streaming")
+      return Boolean(
+        track.serverId &&
+        track.originalId &&
+        streaming.servers.some((server) => server.id === track.serverId),
+      );
     return false;
   };
 
@@ -70,6 +89,18 @@ export const useFavorite = () => {
    */
   const toggle = async (track: Track | null | undefined): Promise<void> => {
     if (!track) return;
+    if (track.source === "streaming") {
+      try {
+        const favorite = await streaming.toggleFavorite(track);
+        if (favorite === null) return;
+        recordFavoriteChange(track, favorite);
+        syncLastfmLove(track, favorite);
+        toast.success(t(favorite ? "liked.toast.added" : "liked.toast.removed"));
+      } catch {
+        toast.error(t("liked.toast.failed"));
+      }
+      return;
+    }
     if (track.source === "local") {
       const next = library.toggleLike(track.id);
       recordFavoriteChange(track, next);
