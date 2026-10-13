@@ -7,8 +7,8 @@ import i18n from "@/i18n";
 
 /**
  * 记一次收藏变更
- * @param track 歌曲
- * @param liked 是否已收藏
+ * @param track - 歌曲
+ * @param liked - 是否已收藏
  */
 const recordFavoriteChange = (track: Track, liked: boolean): void => {
   window.api.stats.recordFavorite({ track, action: liked ? "add" : "remove" });
@@ -41,7 +41,7 @@ export const useFavorite = () => {
 
   /**
    * 当前 Track 是否已收藏
-   * @param track 歌曲
+   * @param track - 歌曲
    * @returns 是否已收藏
    */
   const isLiked = (track: Track | null | undefined): boolean => {
@@ -53,7 +53,7 @@ export const useFavorite = () => {
 
   /**
    * 是否支持收藏
-   * @param track 歌曲
+   * @param track - 歌曲
    * @returns 是否支持收藏
    */
   const isSupported = (track: Track | null | undefined): boolean => {
@@ -65,7 +65,7 @@ export const useFavorite = () => {
 
   /**
    * 切换收藏
-   * @param track 歌曲
+   * @param track - 歌曲
    * @returns 是否切换成功
    */
   const toggle = async (track: Track | null | undefined): Promise<void> => {
@@ -78,6 +78,7 @@ export const useFavorite = () => {
       return;
     }
     if (track.source === "netease") {
+      if (user.isLikePending(track.id)) return;
       if (!user.isLoggedIn) {
         toast.warning(t("liked.toast.needLogin"));
         return;

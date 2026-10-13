@@ -111,6 +111,9 @@ const classifyLoadError = (error: unknown, source: string): ErrorCode => {
   if (isNativeSourceNotFoundError(error)) {
     return ErrorCode.FILE_NOT_FOUND;
   }
+  if (msg.includes("[DecodeFailed]")) {
+    return ErrorCode.FILE_DECODE_ERROR;
+  }
   if (isNativeNetworkError(error) || /^https?:\/\//i.test(source)) {
     return ErrorCode.NETWORK_ERROR;
   }

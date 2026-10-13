@@ -4,6 +4,11 @@ const api = vi.hoisted(() => ({
   likelist: vi.fn(),
   search: vi.fn(),
   login_refresh: vi.fn(),
+  song_like: vi.fn(),
+  artist_sub: vi.fn(),
+  album_sub: vi.fn(),
+  playlist_subscribe: vi.fn(),
+  playlist_tracks: vi.fn(),
   getSessionCookies: vi.fn(() => ({ MUSIC_U: "test-session" })),
   saveSessionCookies: vi.fn(),
   clearSessionCookies: vi.fn(),
@@ -14,6 +19,7 @@ vi.mock("@main/store", () => ({ store: { get: () => false } }));
 vi.mock("@main/utils/logger", () => ({ neteaseLog: { info: vi.fn() } }));
 vi.mock("./core/request", () => ({ createRequest: vi.fn() }));
 vi.mock("./core/xeapi", () => ({ resetXeapiKey: vi.fn() }));
+vi.mock("./core/webClient", () => ({ resetWebClientSession: vi.fn() }));
 vi.mock("./core/device", () => ({
   getAnonymousToken: () => "",
   getDeviceId: () => "test-device",
@@ -25,6 +31,11 @@ vi.mock("./modules", () => ({
     likelist: api.likelist,
     search: api.search,
     login_refresh: api.login_refresh,
+    song_like: api.song_like,
+    artist_sub: api.artist_sub,
+    album_sub: api.album_sub,
+    playlist_subscribe: api.playlist_subscribe,
+    playlist_tracks: api.playlist_tracks,
   },
 }));
 
@@ -36,7 +47,7 @@ const response = (code: number, cookie: string[] = []) => ({
   cookie,
 });
 
-describe("网易云主进程缓存与会话", () => {
+describe("平台主进程缓存与会话", () => {
   beforeEach(() => {
     setNeteaseCookies({ MUSIC_U: "test-session" });
     api.saveSessionCookies.mockClear();
@@ -44,6 +55,31 @@ describe("网易云主进程缓存与会话", () => {
     api.likelist.mockReset().mockResolvedValue(response(200));
     api.search.mockReset().mockResolvedValue(response(200));
     api.login_refresh.mockReset().mockResolvedValue(response(200));
+    for (const name of [
+      "song_like",
+      "artist_sub",
+      "album_sub",
+      "playlist_subscribe",
+      "playlist_tracks",
+    ] as const) {
+      api[name].mockReset().mockResolvedValue(response(200, ["sdkState=current; Path=/"]));
+    }
+  });
+
+  it.each([
+    "song_like",
+    "artist_sub",
+    "album_sub",
+    "playlist_subscribe",
+    "playlist_tracks",
+  ] as const)("%s 不缓存业务写入并保留网页会话 Cookie", async (name) => {
+    await callNetease(name, { id: 1 });
+    await callNetease(name, { id: 1 });
+    expect(api[name]).toHaveBeenCalledTimes(2);
+    expect(api.saveSessionCookies).toHaveBeenCalledWith(
+      "netease",
+      expect.objectContaining({ sdkState: "current" }),
+    );
   });
 
   it("红心列表每次从服务端读取", async () => {

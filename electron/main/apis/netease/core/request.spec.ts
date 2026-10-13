@@ -1,18 +1,29 @@
 import { createCipheriv } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const api = vi.hoisted(() => ({ fetch: vi.fn(), v3: vi.fn() }));
+const api = vi.hoisted(() => ({ fetch: vi.fn(), v3: vi.fn(), web: vi.fn() }));
 vi.mock("@main/utils/proxy", () => ({ fetchWithProxy: api.fetch }));
+vi.mock("./webClient", () => ({ requestWithWebClient: api.web }));
 vi.mock("./checktoken", () => ({ getAntiCheatTokenV3: api.v3 }));
 vi.mock("./device", () => ({ getAnonymousToken: () => "", getDeviceId: () => "device" }));
 
 import { eapiReqDecrypt } from "./crypto";
 import { createRequest } from "./request";
 
-describe("网易云请求协议与解析", () => {
+describe("平台请求协议与解析", () => {
   beforeEach(() => {
     api.fetch.mockReset().mockResolvedValue(new Response('{"code":200}'));
     api.v3.mockReset().mockResolvedValue("v3-fresh-token");
+    api.web.mockReset().mockResolvedValue({ status: 200, body: { code: 200 }, cookie: [] });
+  });
+
+  it("网页配置路由到公共请求层，不再经过客户端凭据和自动重试", async () => {
+    const data = { id: 1 };
+    const options = { client: "web" as const };
+    await createRequest("/api/artist/sub", data, options);
+    expect(api.web).toHaveBeenCalledWith("/api/artist/sub", data, options);
+    expect(api.fetch).not.toHaveBeenCalled();
+    expect(api.v3).not.toHaveBeenCalled();
   });
 
   it("原收藏请求不获取反作弊凭据", async () => {

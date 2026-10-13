@@ -1,10 +1,4 @@
-/**
- * 云盘上传编排(客户端直传)
- *
- * 查重后按 needUpload 分流
- * - 需真上传:申请 token → 取 NOS 服务器 → 流式直传 → 提交信息 → 发布
- * - 秒传(文件已在网易曲库):走导入接口(check/v2 + user/song/import),不申请 token、不传字节
- */
+/** 按上传需求分流秒传导入与流式直传，并统一检查业务结果 */
 
 import http from "node:http";
 import https from "node:https";
@@ -15,7 +9,7 @@ import { stat } from "node:fs/promises";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { callNetease } from "@main/apis/netease";
-import { NeteaseRequestError, type RequestResponse } from "@main/apis/netease/core/request";
+import { NeteaseRequestError, type RequestResponse } from "@main/apis/netease/core/response";
 import { getEngine } from "@main/services/engine";
 import { cloudLog } from "@main/utils/logger";
 import type { CloudUploadResult, CloudUploadStage } from "@shared/types/cloudUpload";
@@ -120,7 +114,7 @@ const uploadToNos = (
 
     let loaded = 0;
     const counter = new Transform({
-      transform(chunk, _encoding, callback) {
+      transform: (chunk, _encoding, callback) => {
         loaded += chunk.length;
         onBytes(loaded);
         callback(null, chunk);
@@ -171,7 +165,7 @@ export const uploadCloudSong = async (
   const checkSongId = checkRes.body?.songId;
   cloudLog.info(`查重完成: ${fullName} needUpload=${needUpload} songId=${checkSongId}`);
 
-  // 秒传:文件已在曲库,走导入接口落库,不申请 token、不传字节
+  /** 已有曲库文件通过导入建立关联，避免重复申请上传凭据或传输字节 */
   if (!needUpload) {
     onProgress({ stage: "finishing", loaded: fileSize, total: fileSize });
     const checkV2 = await callNetease("cloud_upload_check_v2", {
@@ -195,7 +189,6 @@ export const uploadCloudSong = async (
     return { success: true, instant: true, songId: String(matched.songId) };
   }
 
-  // 需真上传:申请 token → 取 NOS 服务器 → 流式直传 → 提交信息 → 发布
   const tokenRes = await callNetease("cloud_nos_token", {
     ext,
     filename: baseName.replace(/\s/g, "").replace(/\./g, "_"),

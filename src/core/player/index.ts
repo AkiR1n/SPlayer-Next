@@ -101,7 +101,7 @@ const skipOnFailure = async (
   consecutiveFailures++;
   if (
     consecutiveFailures >= MAX_CONSECUTIVE_FAILURES ||
-    consecutiveFailures >= queue.queueLength.value
+    (!useStatusStore().fmMode && consecutiveFailures >= queue.queueLength.value)
   ) {
     const reachedMax = consecutiveFailures >= MAX_CONSECUTIVE_FAILURES;
     consecutiveFailures = 0;

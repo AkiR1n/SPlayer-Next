@@ -71,10 +71,15 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
     case "status":
       // 歌曲加载中或 loading 事件不更新 UI，保持当前封面/进度/播放状态平滑过渡
       if (event.data.state === "loading" || status.trackLoading) break;
-      status.state = event.data.state;
-      if (event.data.state === "idle" || event.data.state === "stopped") {
+      /** 失败路径已置为空闲时，迟到的停止通知不能取消待执行的自动跳曲 */
+      if (
+        (event.data.state === "idle" || event.data.state === "stopped") &&
+        status.state !== "idle" &&
+        status.state !== "stopped"
+      ) {
         invalidatePlaybackOperation();
       }
+      status.state = event.data.state;
       // seek 期间不从 status 事件更新 position，避免回跳；position 更新统一由 position 事件负责
       if (!isSeeking()) {
         status.position = playback.setCurrentTime(event.data.position);

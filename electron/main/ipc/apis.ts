@@ -1,14 +1,8 @@
-/**
- * 音源 API 统一 IPC
- *
- * 只注册两个通道：
- * - apis:call(platform, name, params)   调用对应平台的任意接口
- * - apis:clearSession(platform)         清空某平台登录态
- */
+/** 注册音源接口和会话管理的跨进程入口 */
 
 import { ipcMain } from "electron";
 import { callNetease, clearNeteaseCookies, mergeNeteaseCookies } from "@main/apis/netease";
-import { NeteaseRequestError } from "@main/apis/netease/core/request";
+import { NeteaseRequestError } from "@main/apis/netease/core/response";
 import { cookieToJson } from "@main/apis/netease/core/cookie";
 import { callQQMusic, clearQQMusicCookies, mergeQQMusicCookies } from "@main/apis/qqmusic";
 import { callKugou, clearKugouSession, mergeKugouSession } from "@main/apis/kugou";
@@ -68,7 +62,7 @@ export const registerApisIpc = (): void => {
     if (platform === "kugou") clearKugouSession();
   });
 
-  // 打开官方网页登录，成功后把 cookies 合并写入 session
+  /** 打开官方网页登录，成功后把 cookies 合并写入 session */
   ipcMain.handle("apis:openLoginWeb", async (_evt, platform: ApiPlatform) => {
     try {
       if (platform === "netease") {
@@ -84,7 +78,7 @@ export const registerApisIpc = (): void => {
     }
   });
 
-  // 手动写入 cookie 登录
+  /** 手动写入 cookie 登录 */
   ipcMain.handle("apis:setCookie", (_evt, platform: ApiPlatform, raw: string) => {
     const parsed = cookieToJson(raw);
     if (platform === "netease") {

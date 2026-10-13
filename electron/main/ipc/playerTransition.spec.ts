@@ -30,6 +30,7 @@ vi.mock("@main/services/engine", () => {
     getDuration: () => 10,
     getPosition: () => 5,
     getSpeed: () => 1,
+    getVolume: () => 1,
     getCoverRaw: () => null,
     getStatus: () => ({ state: "playing" }),
   };
@@ -158,5 +159,20 @@ describe("交接响应的主进程竞态保护", () => {
     ).toMatchObject({ success: true, data: { playback: { state: "playing" } } });
     expect(mocks.metadata).toHaveBeenCalledOnce();
     expect(mocks.prepareTransition).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["[DecodeFailed] invalid audio data", "FILE_DECODE_ERROR"],
+    ["[SourceNotFound] HTTP 404", "FILE_NOT_FOUND"],
+    ["[NetworkUnreachable] connection refused", "NETWORK_ERROR"],
+    ["[Device] output unavailable", "DEVICE_NOT_FOUND"],
+    ["[Cancelled] superseded", "LOAD_SUPERSEDED"],
+    ["unclassified remote error", "NETWORK_ERROR"],
+  ])("远程音源保留原生错误分类 %s", async (message, error) => {
+    mocks.load.mockRejectedValueOnce(new Error(message));
+    expect(await invoke("player:load", "https://music/song.flac", {})).toEqual({
+      success: false,
+      error,
+    });
   });
 });

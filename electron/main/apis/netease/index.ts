@@ -1,15 +1,4 @@
-/**
- * Netease API 主进程服务
- *
- * 直接在 Node 侧实现加解密 + HTTP 调用，不依赖任何网易云服务端 npm 包
- * 加密算法等核心逻辑见 core/crypto.ts
- *
- * 统一入口 `callNetease(name, params)`：
- *   1) 从 sessions 表加载 cookies 注入（内存缓存，不重复读 SQLite）
- *   2) 走一层内存响应缓存（2 分钟）
- *   3) 路由到 modules/<name>
- *   4) 只在登录相关接口上把响应 set-cookie 写回 sessions；其它接口不落库
- */
+/** 注入平台会话、路由业务接口并管理有界响应缓存 */
 
 import {
   clearSessionCookies,
@@ -22,11 +11,12 @@ import { cookieToJson } from "./core/cookie";
 import { getAnonymousToken, getDeviceId, setAnonymousToken, setDeviceId } from "./core/device";
 import { createRequest } from "./core/request";
 import { resetXeapiKey } from "./core/xeapi";
+import { resetWebClientSession } from "./core/webClient";
 import { modules } from "./modules";
 import { neteaseLog } from "@main/utils/logger";
 import type { Query } from "./core/option";
 
-/** 会变更登录态的接口：响应里若带 set-cookie，才值得写回 SQLite */
+/** 会更新登录凭据或网页 SDK 状态的接口 */
 const SESSION_MUTATING: ReadonlySet<string> = new Set([
   "login",
   "login_cellphone",
@@ -34,6 +24,11 @@ const SESSION_MUTATING: ReadonlySet<string> = new Set([
   "login_refresh",
   "logout",
   "register_anonimous",
+  "song_like",
+  "artist_sub",
+  "album_sub",
+  "playlist_subscribe",
+  "playlist_tracks",
 ]);
 
 /** 不采用缓存的实时接口 */
@@ -56,6 +51,7 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "scrobble_v1",
   "like",
   "like_v1",
+  "song_like",
   "likelist",
   "album_sublist",
   "artist_sublist",
@@ -86,7 +82,7 @@ const NON_CACHEABLE: ReadonlySet<string> = new Set([
   "recommend_songs",
 ]);
 
-/** 无需初始化网易云匿名登录态的公开接口 */
+/** 无需初始化平台匿名登录态的公开接口 */
 const SESSIONLESS: ReadonlySet<string> = new Set(["audio_match"]);
 
 /** 国内 IP 前缀池 */
@@ -132,6 +128,7 @@ const loadSession = (): Record<string, string> => {
 };
 
 const persistSession = (cookies: Record<string, string>): void => {
+  if (loadSession().MUSIC_U !== cookies.MUSIC_U) resetWebClientSession();
   sessionVersion++;
   sessionCache = cookies;
   syncDeviceState(cookies);
@@ -157,6 +154,7 @@ export const mergeNeteaseCookies = (patch: Record<string, string>): void => {
 };
 
 export const clearNeteaseCookies = (): void => {
+  resetWebClientSession();
   sessionVersion++;
   sessionCache = {};
   setAnonymousToken("");
@@ -208,15 +206,14 @@ export const ensureNeteaseAnonymousSession = async (): Promise<void> => {
 };
 
 /**
- * 调用任意 Netease API
- * @param name 见 modules/index.ts 中的 key
- * @param params 业务参数；cookie 自动注入，无需调用方传
+ * 调用注册的业务接口
+ * @param name - 见 modules/index.ts 中的 key
+ * @param params - 业务参数；cookie 自动注入，无需调用方传
  */
 export const callNetease = async (
   name: string,
   params: Record<string, unknown> = {},
 ): Promise<{ status: number; body: any }> => {
-  // hasOwn 守卫
   const fn = Object.hasOwn(modules, name) ? modules[name] : undefined;
   if (!fn) throw new Error(`unknown netease api: ${name}`);
 
@@ -230,7 +227,6 @@ export const callNetease = async (
   }
   const session = loadSession();
 
-  // 读缓存
   const cacheable = !NON_CACHEABLE.has(name);
   const cacheKey = cacheable ? buildCacheKey(name, params) : "";
   if (cacheable) {
@@ -246,19 +242,18 @@ export const callNetease = async (
         : (params.cookie as Record<string, string> | undefined) || { ...session },
   };
 
-  // 注入国内 IP
   if (store.get("system.neteaseRealIp") && query.realIP === undefined) {
     query.realIP = sessionRealIp();
   }
 
   const requestSessionVersion = sessionVersion;
   const res = await fn(query, createRequest);
-  // 旧会话的响应不能覆盖登出或切换账号后的凭据与缓存。
+  /** 旧会话的响应不能覆盖登出或切换账号后的凭据与缓存 */
   if (requestSessionVersion !== sessionVersion) {
     return { status: res.status, body: res.body };
   }
 
-  // 仅登录态变更接口才把响应 cookie 写回 SQLite
+  /** 保留登录续期和网页 SDK 产生的会话状态 */
   if (SESSION_MUTATING.has(name)) {
     const patch = parseSetCookie(res.cookie ?? []);
     if (name === "register_anonimous") {
