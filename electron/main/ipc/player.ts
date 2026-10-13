@@ -583,6 +583,8 @@ export const registerPlayerIpc = (): void => {
   ipcMain.handle("player:stop", () => {
     loadSeq++;
     try {
+      neteaseScrobble.onStopped();
+      lastfm.onStopped();
       cancelPreparedTrack();
       cancelPendingReinit();
       activeCueRange = null;
@@ -595,9 +597,14 @@ export const registerPlayerIpc = (): void => {
   });
 
   // 跳转到指定播放位置
-  ipcMain.handle("player:seek", async (_event, positionMs: number) => {
+  ipcMain.handle("player:seek", async (_event, positionMs: number, restartRound = false) => {
     const seq = ++loadSeq;
     try {
+      /** 重播时先装配轮次，原生 seek 的播放事件才能启动新的计时 */
+      if (restartRound) {
+        neteaseScrobble.onRepeatOneRestart();
+        lastfm.onRepeatOneRestart();
+      }
       const enginePositionMs = toEnginePositionMs(positionMs);
       const positionSecs = enginePositionMs / 1000;
       await getPlayer().seek(positionSecs);
@@ -609,6 +616,10 @@ export const registerPlayerIpc = (): void => {
       });
       return { success: true };
     } catch (error) {
+      if (restartRound && seq === loadSeq) {
+        neteaseScrobble.onStopped();
+        lastfm.onStopped();
+      }
       return fail(ErrorCode.UNKNOWN, error);
     }
   });

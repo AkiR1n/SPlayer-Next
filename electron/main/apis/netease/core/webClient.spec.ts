@@ -23,9 +23,12 @@ const api = vi.hoisted(() => ({
   requestsAborted: 0,
   rules: [] as Array<{ businessId: string; list: string[] }>,
   requests: [] as Array<{
+    origin: string;
     path: string;
     data: Record<string, unknown>;
     headers: Record<string, string>;
+    referrerPolicy?: string;
+    credentials?: string;
   }>,
   sdkKeys: [] as string[],
   scripts: [] as string[],
@@ -109,9 +112,17 @@ vi.mock("electron", () => ({
           api.cookies.push({ name, value });
         },
       },
-      fetch: async (url: string, init?: { body?: string; headers?: Record<string, string> }) => {
+      fetch: async (
+        url: string,
+        init?: {
+          body?: string;
+          headers?: Record<string, string>;
+          referrerPolicy?: string;
+          credentials?: string;
+        },
+      ) => {
         const parsed = new URL(url);
-        if (parsed.hostname !== "music.163.com") {
+        if (parsed.hostname === "ac.dun.163.com" || parsed.hostname === "acstatic-dun.126.net") {
           api.resources.push(url);
           let text: string;
           if (parsed.pathname === "/v2/config/js")
@@ -166,7 +177,14 @@ vi.mock("electron", () => ({
         }
         const path = parsed.pathname.replace("/weapi/", "/api/");
         const data = JSON.parse(new URLSearchParams(init!.body).get("params")!);
-        api.requests.push({ path, data, headers: init!.headers! });
+        api.requests.push({
+          origin: parsed.origin,
+          path,
+          data,
+          headers: init!.headers!,
+          referrerPolicy: init!.referrerPolicy,
+          credentials: init!.credentials,
+        });
         if (path === "/api/middle/clientcfg/config/list")
           return {
             status: 200,
@@ -198,6 +216,7 @@ vi.mock("electron", () => ({
 }));
 
 import { requestWithWebClient, resetWebClientSession } from "./webClient";
+import recordRecentSong from "../modules/record_recent_song";
 
 const options = {
   client: "web" as const,
@@ -214,6 +233,37 @@ const writes = () =>
 let caseVersion = 0;
 
 describe("公共网页请求与 SDK 凭据", () => {
+  it("网页日志使用独立出口，配置仍走主域名且未匹配时不启动 SDK", async () => {
+    await requestWithWebClient(
+      "/api/feedback/weblog",
+      { logs: "[]" },
+      {
+        ...options,
+        domain: "https://clientlogusf.music.163.com",
+      },
+    );
+    expect(api.requests.map(({ origin, path }) => [origin, path])).toEqual([
+      ["https://music.163.com", "/api/middle/clientcfg/config/list"],
+      ["https://clientlogusf.music.163.com", "/api/feedback/weblog"],
+    ]);
+    expect(api.sdkStarts).toBe(0);
+    expect(writes()[0].headers.Cookie).toContain("MUSIC_U=test-session");
+    expect(writes()[0].headers.Referer).toBe("https://music.163.com/");
+    expect(writes()[0].referrerPolicy).toBe("strict-origin-when-cross-origin");
+    expect(writes()[0].headers.Origin).toBe("https://music.163.com");
+    expect(writes()[0].credentials).toBe("include");
+    await expect(
+      requestWithWebClient(
+        "/api/song/like",
+        {},
+        {
+          ...options,
+          domain: "https://untrusted.example",
+        },
+      ),
+    ).rejects.toThrow("网页业务出口无效");
+    expect(api.requests).toHaveLength(2);
+  });
   beforeEach(() => {
     resetWebClientSession();
     api.resetContext();
@@ -262,6 +312,18 @@ describe("公共网页请求与 SDK 凭据", () => {
     expect(api.createWindow).not.toHaveBeenCalled();
     expect(api.listenerCount("did-start-navigation")).toBe(0);
     expect(api.listenerCount("destroyed")).toBe(0);
+  });
+
+  it("业务模块的默认空域名回退到主域名", async () => {
+    await recordRecentSong({ cookie: options.cookie, limit: 1 }, requestWithWebClient);
+    expect(writes()).toHaveLength(1);
+    expect(writes()[0]).toMatchObject({
+      origin: "https://music.163.com",
+      path: "/api/play-record/song/list",
+      data: { limit: 1, csrf_token: "test-csrf" },
+    });
+    expect(api.sdkStarts).toBe(0);
+    expect(writes()[0].headers.Referer).toBe("https://music.163.com/st/webplayer");
   });
 
   it("最后匹配的规则统一装配两层凭据，直接返回业务 200", async () => {

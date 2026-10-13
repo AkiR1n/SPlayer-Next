@@ -51,7 +51,7 @@ const finishCurrentTrack = async (): Promise<void> => {
     if (stopByTimer) return;
     // 单曲循环：seek 回开头继续播放
     if (repeatOne) {
-      await seek(0);
+      await seek(0, true);
       await play();
     } else {
       await nextTrack();

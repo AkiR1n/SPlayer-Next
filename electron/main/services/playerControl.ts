@@ -6,6 +6,8 @@
  */
 
 import { getPlayer } from "@main/services/engine";
+import * as neteaseScrobble from "@main/services/neteaseScrobble";
+import * as lastfm from "@main/services/lastfm";
 import { sendToMain } from "@main/utils/broadcast";
 import { toMs } from "@main/utils/time";
 import type { ShuffleMode, RepeatMode, Track } from "@shared/types/player";
@@ -27,7 +29,11 @@ export const playerControl = {
       .play()
       .catch(() => {}),
   pause: (): void => getPlayer().pause(),
-  stop: (): void => getPlayer().stop(),
+  stop: (): void => {
+    neteaseScrobble.onStopped();
+    lastfm.onStopped();
+    getPlayer().stop();
+  },
   next: (): void => sendToMain("player:event", { type: "next" }),
   prev: (): void => sendToMain("player:event", { type: "prev" }),
   setShuffle: (mode: ShuffleMode): void =>

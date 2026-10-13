@@ -30,6 +30,7 @@ import user_follows from "./user_follows";
 import user_level from "./user_level";
 import user_playlist from "./user_playlist";
 import user_record from "./user_record";
+import record_recent_song from "./record_recent_song";
 import user_subcount from "./user_subcount";
 
 import cloudsearch from "./cloudsearch";
@@ -120,6 +121,7 @@ export const modules: Record<string, NeteaseModule> = {
   user_level,
   user_playlist,
   user_record,
+  record_recent_song,
   user_subcount,
 
   cloudsearch,

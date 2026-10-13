@@ -170,7 +170,7 @@ export const initApp = (): void => {
       app.quit();
     }
   });
-  // 退出前清理
+  /** 退出前释放资源 */
   app.on("before-quit", () => {
     coreLog.info("应用即将退出，清理资源");
     shutdownMedia();

@@ -321,8 +321,13 @@ export interface PlayerApi {
   pause: () => Promise<IpcResponse>;
   /** 停止播放 */
   stop: () => Promise<IpcResponse>;
-  /** 跳转到指定位置（毫秒） */
-  seek: (positionMs: number) => Promise<IpcResponse>;
+  /**
+   * 跳转到指定位置，单曲循环重播需要同时开启统计轮次
+   * @param positionMs - 目标位置，单位为毫秒
+   * @param restartRound - 是否开启新的播放统计轮次
+   * @returns 原生跳转结果
+   */
+  seek: (positionMs: number, restartRound?: boolean) => Promise<IpcResponse>;
   /** 设置音量（0.0 ~ 1.0） */
   setVolume: (volume: number) => Promise<IpcResponse>;
   /** 设置输出设备切换时暂停播放 */

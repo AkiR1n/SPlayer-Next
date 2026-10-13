@@ -2,7 +2,7 @@ import { app, session, type Session, type WebContents } from "electron";
 import { getMainWindow } from "@main/window/main";
 import { getNetworkProxyUrl } from "@main/utils/proxy";
 import { neteaseLog } from "@main/utils/logger";
-import { DOMAIN, UA_MAP } from "./config";
+import { DOMAIN, UA_MAP, WEB_LOG_DOMAIN } from "./config";
 import { cookieToJson } from "./cookie";
 import { weapi } from "./crypto";
 import { NeteaseRequestError, type RequestResponse } from "./response";
@@ -63,6 +63,8 @@ export const requestWithWebClient = (
   options: RequestOptions,
 ): Promise<RequestResponse> => {
   if (quitting) return Promise.reject(new Error("应用正在退出"));
+  if (options.domain && options.domain !== DOMAIN && options.domain !== WEB_LOG_DOMAIN)
+    return Promise.reject(new Error("网页业务出口无效"));
   if (pendingRequests >= MAX_PENDING_REQUESTS)
     return Promise.reject(new Error("平台请求过多，请稍后重试"));
   const requestGeneration = generation;
@@ -159,30 +161,36 @@ export const requestWithWebClient = (
        * @param path - API 路径
        * @param payload - 加密前的参数
        * @param antiCheatToken - SDK 第二次调用结果
+       * @param domain - 业务出口，配置请求始终使用默认域名
        * @returns 已校验业务状态码的响应体
        */
       const send = async (
         path: string,
         payload: Record<string, unknown>,
         antiCheatToken?: string,
+        domain = DOMAIN,
       ): Promise<Record<string, unknown>> => {
         ensureCurrent();
         const cookies = await ses.cookies.get({ url: DOMAIN });
         ensureCurrent();
         const csrf = cookies.find((c) => c.name === "__csrf")?.value ?? "";
         const body = new URLSearchParams(weapi({ ...payload, csrf_token: csrf })).toString();
-        const url = new URL(path.replace(/^\/api\//, "/weapi/"), DOMAIN);
+        const url = new URL(path.replace(/^\/api\//, "/weapi/"), domain);
         url.searchParams.set("csrf_token", csrf);
         const headers: Record<string, string> = {
           "Content-Type": "application/x-www-form-urlencoded",
           "x-music-web-os": "web3",
-          Referer: "https://music.163.com/st/webplayer",
+          Origin: DOMAIN,
+          /** 跨域请求只携带来源域名，避免被浏览器的来源策略拦截 */
+          Referer: domain === DOMAIN ? `${DOMAIN}/st/webplayer` : `${DOMAIN}/`,
           "User-Agent": userAgent,
           Cookie: cookies.map(({ name, value }) => `${name}=${value}`).join("; "),
         };
         if (antiCheatToken) headers["X-antiCheatToken"] = antiCheatToken;
         const response = await ses.fetch(url.toString(), {
           method: "POST",
+          credentials: "include",
+          referrerPolicy: "strict-origin-when-cross-origin",
           headers,
           body,
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
@@ -233,7 +241,7 @@ export const requestWithWebClient = (
         payload = { ...payload, ...tokens };
         antiCheatToken = tokens.checkToken;
       }
-      const body = await send(uri, payload, antiCheatToken);
+      const body = await send(uri, payload, antiCheatToken, options.domain || DOMAIN);
       const cookies = await ses.cookies.get({ url: DOMAIN });
       ensureCurrent();
       return { status: 200, body, cookie: cookies.map(({ name, value }) => `${name}=${value}`) };

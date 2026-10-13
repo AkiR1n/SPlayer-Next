@@ -50,6 +50,9 @@ const mocks = vi.hoisted(() => {
     resolve: vi.fn(),
     load: vi.fn(),
     stop: vi.fn(),
+    seek: vi.fn(),
+    play: vi.fn(),
+    stopAfterEnd: false,
     fmStart: vi.fn(),
     fmNext: vi.fn(),
     transition: vi.fn(),
@@ -104,7 +107,7 @@ vi.mock("@/services/lyric/loader", () => ({ beginLoad: vi.fn(), loadForTrack: vi
 vi.mock("@/services/coverLoader", () => ({ loadCoverForTrack: vi.fn() }));
 vi.mock("@/services/abLoop", () => ({ reset: vi.fn() }));
 vi.mock("@/services/autoClose", () => ({
-  onTrackEnded: () => false,
+  onTrackEnded: () => mocks.stopAfterEnd,
   shouldStopAfterCurrentTrack: () => false,
 }));
 vi.mock("@/services/cacheScheduler", () => ({ cancel: vi.fn(), schedule: vi.fn() }));
@@ -122,6 +125,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
   mocks.queue.value = [...mocks.tracks];
+  mocks.stopAfterEnd = false;
   mocks.media.track = null;
   Object.assign(mocks.status, {
     state: "playing",
@@ -142,10 +146,18 @@ beforeEach(() => {
     data: { detail: {}, mediaInfo: { duration: 10000 } },
   });
   mocks.stop.mockResolvedValue({ success: true });
+  mocks.seek.mockResolvedValue({ success: true });
+  mocks.play.mockResolvedValue({ success: true });
   mocks.alert.mockResolvedValue(undefined);
   Object.assign(window, {
     api: {
-      player: { load: mocks.load, stop: mocks.stop, transitionPrepared: mocks.transition },
+      player: {
+        load: mocks.load,
+        stop: mocks.stop,
+        seek: mocks.seek,
+        play: mocks.play,
+        transitionPrepared: mocks.transition,
+      },
     },
   });
 });
@@ -168,6 +180,24 @@ const sendStatus = async (state: PlayerState): Promise<void> => {
 };
 
 describe("单曲失败自动跳曲", () => {
+  it("自然单曲重播明确通知主进程开启新轮次，睡眠定时停止时不重播", async () => {
+    mocks.status.repeatMode = "one";
+    mocks.status.state = "stopped";
+    /** 原生 seek 从曲尾重播时会先发送播放状态，再返回跳转结果 */
+    mocks.seek.mockImplementation(async () => {
+      mocks.status.state = "playing";
+      return { success: true };
+    });
+    const { handleEvent } = await import("./events");
+    await handleEvent({ type: "ended" });
+    expect(mocks.seek).toHaveBeenCalledExactlyOnceWith(0, true);
+    expect(mocks.play).toHaveBeenCalledOnce();
+    expect(mocks.load).not.toHaveBeenCalled();
+    mocks.stopAfterEnd = true;
+    await handleEvent({ type: "ended" });
+    expect(mocks.seek).toHaveBeenCalledOnce();
+    expect(mocks.play).toHaveBeenCalledOnce();
+  });
   it.each([ErrorCode.NETEASE_UNAVAILABLE, ErrorCode.NO_PLUGIN_AVAILABLE, ErrorCode.FILE_NOT_FOUND])(
     "%s 遇到迟到的停止通知仍自动播放下一首",
     async (error) => {

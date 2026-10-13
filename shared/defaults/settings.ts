@@ -166,7 +166,7 @@ export const defaultSystemConfig: SystemConfig = {
       port: 7890,
     },
     neteaseScrobbleEnabled: false,
-    neteaseScrobbleMode: "ncbl",
+    neteaseScrobbleMode: "legacy",
     registerOrpheusProtocol: false,
   },
   windowStates: {

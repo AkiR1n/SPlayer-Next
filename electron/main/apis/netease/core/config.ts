@@ -31,6 +31,8 @@ export const DUN_DOMAIN_V3 = "https://ac.dun.163yun.com";
 export const CLIENT_LOG_DOMAIN = "https://clientlog.music.163.com";
 /** NCBL 加密日志域名 */
 export const CLIENT_LOG3_DOMAIN = "https://clientlog3.music.163.com";
+/** 官方网页的播放日志出口 */
+export const WEB_LOG_DOMAIN = "https://clientlogusf.music.163.com";
 /** 是否默认对响应体做 eapi 加密（e_r） */
 export const ENCRYPT_RESPONSE = false;
 

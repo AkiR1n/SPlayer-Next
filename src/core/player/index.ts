@@ -632,8 +632,9 @@ export const isSeeking = (): boolean => seekTarget !== null;
 /**
  * 跳转到指定播放位置
  * @param posMs - 目标位置（毫秒）
+ * @param restartRound - 是否为单曲循环开启新的统计轮次
  */
-export const seek = async (posMs: number): Promise<void> => {
+export const seek = async (posMs: number, restartRound = false): Promise<void> => {
   const status = useStatusStore();
   // 歌曲加载中 seek 无意义：引擎此刻没有可 seek 的解码线程，
   // 且 seekTarget 残留会让加载完成后的 position 推送被持续丢弃
@@ -647,7 +648,9 @@ export const seek = async (posMs: number): Promise<void> => {
   // 设置 seek 目标，屏蔽旧 position 推送
   seekTarget = posMs;
 
-  const result = await window.api.player.seek(posMs);
+  const result = await (restartRound
+    ? window.api.player.seek(posMs, true)
+    : window.api.player.seek(posMs));
   if (token !== trackToken) return;
   if (result.success) {
     status.position = posMs;

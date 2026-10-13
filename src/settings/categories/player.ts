@@ -170,6 +170,12 @@ const playerCategory: SettingCategory = {
           type: "switch",
           binding: { store: "settings", path: "system.system.neteaseScrobbleEnabled" },
           defaultValue: false,
+          confirm: {
+            when: (next) => next === true,
+            titleKey: "settings.confirm.enableTitle",
+            contentKey: "settings.confirm.scrobbleRiskContent",
+            type: "warning",
+          },
           children: [
             {
               key: "neteaseScrobbleMode",
@@ -179,7 +185,7 @@ const playerCategory: SettingCategory = {
                 { value: "legacy", labelKey: "settings.neteaseScrobbleMode.legacy" },
                 { value: "ncbl", labelKey: "settings.neteaseScrobbleMode.ncbl" },
               ],
-              defaultValue: "ncbl",
+              defaultValue: "legacy",
             },
           ],
         },
