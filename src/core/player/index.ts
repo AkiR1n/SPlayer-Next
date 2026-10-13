@@ -77,6 +77,8 @@ type LoadSourceResult =
 let loadToken = 0;
 /** loadTrack 竞态 token */
 let trackToken = 0;
+/** 暂停操作代次，防止热重载覆盖期间的手动暂停 */
+let pauseToken = 0;
 let transitionInFlight = false;
 let lastLoggedTransitionId: string | null = null;
 /** 连续加载失败计数，成功时重置 */
@@ -440,6 +442,7 @@ export const reloadCurrentTrack = async (forcePlay?: boolean): Promise<boolean> 
   if (!track || track.source === "local") return false;
   const status = useStatusStore();
   const shouldPlay = forcePlay ?? status.isPlaying;
+  const myPauseToken = pauseToken;
   const resumePosition = Math.round(playback.getCurrentTime());
   // 抢占加载令牌，与 loadTrack 互相取消
   const myToken = ++trackToken;
@@ -464,8 +467,16 @@ export const reloadCurrentTrack = async (forcePlay?: boolean): Promise<boolean> 
     if (loaded.result.error) handleError(loaded.result.error);
     return false;
   }
-  if (resumePosition > 0) await seek(resumePosition);
-  if (shouldPlay) await play();
+  let resumeToken = myToken;
+  if (resumePosition > 0) {
+    const seeking = seek(resumePosition);
+    /** seek 会推进加载代次，后续只接受这次进度恢复的结果 */
+    resumeToken = trackToken;
+    await seeking;
+    if (resumeToken !== trackToken) return true;
+  }
+  if (shouldPlay && myPauseToken === pauseToken) await play();
+  if (resumeToken !== trackToken) return true;
   if (loaded.resolved.cacheRequest) {
     cacheScheduler.schedule(track.id, loaded.resolved.cacheRequest);
   }
@@ -486,6 +497,7 @@ export const recoverFromSourceFailure = async (): Promise<void> => {
   const track = useMediaStore().track;
   if (!track) return;
   const wasPlaying = useStatusStore().isPlaying;
+  const myPauseToken = pauseToken;
   // 本地文件源失效（文件被删/磁盘错误）没有重载意义，直接跳曲
   if (track.source === "local") {
     await nextTrack(wasPlaying);
@@ -507,7 +519,7 @@ export const recoverFromSourceFailure = async (): Promise<void> => {
   const ok = await reloadCurrentTrack();
   if (!ok) {
     sourceRecoveryCount = 0;
-    await nextTrack(wasPlaying);
+    await nextTrack(wasPlaying && myPauseToken === pauseToken);
   }
 };
 
@@ -558,6 +570,7 @@ export const togglePlay = (): void => {
 
 /** 暂停播放 */
 export const pause = async (): Promise<void> => {
+  pauseToken++;
   const status = useStatusStore();
   const prev = status.state;
   status.state = "paused";
