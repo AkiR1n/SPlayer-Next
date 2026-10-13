@@ -114,8 +114,14 @@ const api = {
     pause: () => ipcRenderer.invoke("player:pause"),
     // 停止播放
     stop: () => ipcRenderer.invoke("player:stop"),
-    // 跳转到指定位置（毫秒）
-    seek: (position: number) => ipcRenderer.invoke("player:seek", position),
+    /**
+     * 单曲重播需要在原生播放事件前开启新的统计轮次
+     * @param position - 目标位置，单位为毫秒
+     * @param restartRound - 是否开启新的播放统计轮次
+     * @returns 主进程跳转结果
+     */
+    seek: (position: number, restartRound?: boolean) =>
+      ipcRenderer.invoke("player:seek", position, restartRound),
     // 设置音量（0.0 ~ 1.0）
     setVolume: (volume: number) => ipcRenderer.invoke("player:setVolume", volume),
     // 设置输出设备切换时暂停播放

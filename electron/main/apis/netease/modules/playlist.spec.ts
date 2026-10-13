@@ -1,56 +1,71 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@main/utils/proxy", () => ({ fetchWithProxy: vi.fn() }));
 vi.mock("../core/checktoken", () => ({ getAntiCheatTokenV3: vi.fn() }));
 vi.mock("../core/device", () => ({ getAnonymousToken: () => "", getDeviceId: () => "device" }));
-vi.mock("@main/utils/proxy", () => ({ fetchWithProxy: vi.fn() }));
 
-import { NeteaseRequestError } from "../core/request";
+import { NeteaseRequestError } from "../core/response";
 import playlistTracks from "./playlist_tracks";
 import playlistSubscribe from "./playlist_subscribe";
+import albumSub from "./album_sub";
+import artistSub from "./artist_sub";
+import songLike from "./song_like";
 
 const response = { status: 200, body: { code: 200 }, cookie: [] };
 const request = vi.fn();
 
-describe("歌单接口兼容", () => {
+describe("收藏模块使用公共网页请求配置", () => {
   beforeEach(() => request.mockReset().mockResolvedValue(response));
-
-  it("保留受限歌曲 512 的双倍 ID 添加重试", async () => {
-    request.mockRejectedValueOnce(
-      new NeteaseRequestError({ status: 512, body: { code: "512" }, cookie: [] }),
-    );
-    expect(await playlistTracks({ op: "add", pid: 1, tracks: "2,3" }, request)).toBe(response);
-    expect(request).toHaveBeenCalledTimes(2);
-    expect(request.mock.calls[1][1].trackIds).toBe('["2","3","2","3"]');
-  });
-
-  for (const code of [301, 302, 401, 502]) {
-    it(`业务 ${code} 原样返回，不触发受限歌曲重试`, async () => {
+  it.each([301, 302, 401, 502, 512])(
+    "歌单添加业务 %s 原样返回，不通过重复 ID 强制重试",
+    async (code) => {
       const error = new NeteaseRequestError({ status: code, body: { code }, cookie: [] });
       request.mockRejectedValueOnce(error);
-      await expect(playlistTracks({ op: "add", pid: 1, tracks: "2" }, request)).rejects.toBe(error);
+      await expect(playlistTracks({ op: "add", pid: 1, tracks: "2,3" }, request)).rejects.toBe(
+        error,
+      );
       expect(request).toHaveBeenCalledTimes(1);
-    });
-  }
-
-  it("删除歌曲遇到 512 不重复写入", async () => {
-    request.mockRejectedValueOnce(
-      new NeteaseRequestError({ status: 512, body: { code: 512 }, cookie: [] }),
+      expect(request.mock.calls[0][1].trackIds).toBe('["2","3"]');
+    },
+  );
+  it("歌单增删共用网页请求层", async () => {
+    await playlistTracks({ op: "del", pid: 1, tracks: "2,3" }, request);
+    expect(request.mock.calls[0]).toEqual([
+      "/api/playlist/manipulate/tracks",
+      { op: "del", pid: 1, trackIds: '["2","3"]', imme: "true" },
+      expect.objectContaining({ client: "web", crypto: "weapi" }),
+    ]);
+  });
+  it.each([1, "1", 2, "2"])("歌单订阅参数 %s 选择正确路径，SDK 是否启用交给公共层", async (t) => {
+    await playlistSubscribe({ id: 1, t }, request);
+    expect(request.mock.calls[0][0]).toBe(
+      Number(t) === 2 ? "/api/playlist/unsubscribe" : "/api/playlist/subscribe",
     );
-    await expect(playlistTracks({ op: "del", pid: 1, tracks: "2" }, request)).rejects.toThrow();
-    expect(request).toHaveBeenCalledTimes(1);
-  });
-
-  it("收藏保持原有 eapi 请求，不强制获取反作弊凭据", async () => {
-    await playlistSubscribe({ id: 1, t: "1" }, request);
-    expect(request.mock.calls[0][0]).toBe("/api/playlist/subscribe");
     expect(request.mock.calls[0][1]).toEqual({ id: 1 });
-    expect(request.mock.calls[0][2].crypto).toBe("eapi");
-    expect(request.mock.calls[0][2].checkToken).toBe(false);
+    expect(request.mock.calls[0][2]).toMatchObject({ client: "web", crypto: "weapi" });
   });
-
-  it("字符串取消参数使用取消接口，不携带收藏业务 token", async () => {
-    await playlistSubscribe({ id: 1, t: "2" }, request);
-    expect(request.mock.calls[0][0]).toBe("/api/playlist/unsubscribe");
-    expect(request.mock.calls[0][1]).toEqual({ id: 1 });
+  it.each([1, "1", 2, "2"])("歌手和专辑参数 %s 都通过公共路径匹配", async (t) => {
+    await artistSub({ id: 1, t }, request);
+    await albumSub({ id: 2, t }, request);
+    const action = Number(t) === 2 ? "unsub" : "sub";
+    expect(request.mock.calls[0][0]).toBe("/api/artist/" + action);
+    expect(request.mock.calls[1][0]).toBe("/api/album/" + action);
+    expect(
+      request.mock.calls.every(
+        ([, , options]) => options.client === "web" && options.crypto === "weapi",
+      ),
+    ).toBe(true);
   });
+  it.each([true, false, "false"])(
+    "歌曲红心 %s 只提交业务字段，不判断额外确认字段",
+    async (like) => {
+      expect(await songLike({ id: 1, uid: 2, like }, request)).toBe(response);
+      expect(request.mock.calls[0]).toEqual([
+        "/api/song/like",
+        { trackId: "1", userid: "2", like: String(like !== false && like !== "false") },
+        expect.objectContaining({ client: "web", crypto: "weapi" }),
+      ]);
+      expect(request).toHaveBeenCalledTimes(1);
+    },
+  );
 });

@@ -431,7 +431,7 @@ export interface AppUpdateSettings {
   channel: UpdateChannel;
 }
 
-/** NCM 听歌打卡上报方式 */
+/** 播放日志上报协议 */
 export type NeteaseScrobbleMode = "legacy" | "ncbl";
 
 /** KG 登录版本 */
@@ -493,7 +493,7 @@ export interface SystemConfig {
     networkProxy: NetworkProxySettings;
     /** 听歌打卡开关 */
     neteaseScrobbleEnabled: boolean;
-    /** 听歌打卡上报方式 */
+    /** 播放日志上报协议 */
     neteaseScrobbleMode: NeteaseScrobbleMode;
     /** 注册为 Orpheus 协议处理程序，抢占网页端「用客户端打开」 */
     registerOrpheusProtocol: boolean;

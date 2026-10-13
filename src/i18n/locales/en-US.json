@@ -1100,7 +1100,8 @@
         "closePlayer": "Close player view",
         "togglePlaylist": "Show / hide playlist",
         "openSearch": "Open search",
-        "searchInPage": "Search in page"
+        "searchInPage": "Search in page",
+        "openSettings": "Open settings"
       }
     },
     "engine": {
@@ -1113,6 +1114,8 @@
     },
     "confirm": {
       "highResourceTitle": "Resource-Intensive Feature",
+      "enableTitle": "Confirm enabling",
+      "scrobbleRiskContent": "Scrobbling is still experimental. Reported listening records are not guaranteed to count as valid plays, and the associated risks are not yet fully understood.\nEnabling it may trigger account risk controls or other account security issues. Consider the potential risks carefully before enabling this feature.",
       "highResourceContent": "Enabling it may noticeably increase memory and CPU usage, and could cause stuttering on lower-end devices. Enable it anyway?",
       "restartRequiredTitle": "Restart Required",
       "restartRequiredContent": "This setting requires an app restart. Save and relaunch now?",
@@ -1816,12 +1819,12 @@
     },
     "neteaseScrobbleEnabled": {
       "label": "Enable scrobble",
-      "description": "Automatically report listening records to NCM after a track has played long enough"
+      "description": "Sync NCM listening records using actual playback time"
     },
     "neteaseScrobbleMode": {
       "label": "NCM scrobble method",
-      "description": "Choose which reporting interface is used for automatic NCM listening records",
-      "legacy": "Legacy log API",
+      "description": "Choose the reporting protocol for syncing listening records",
+      "legacy": "Web log API",
       "ncbl": "NCBL encrypted API"
     },
     "orpheusProtocol": {

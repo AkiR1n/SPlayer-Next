@@ -1,15 +1,14 @@
 import type { Album, Artist, Playlist } from "@shared/types/player";
 import type { UserSubcount } from "@/types/user";
-import { NeteaseApiError, netease as neteaseApi } from "@/apis/netease";
-import { isExplicitNeteaseAuthFailure } from "@/apis/neteaseAuth";
+import { netease as neteaseApi } from "@/apis/netease";
 import { ensureOk, toAlbum, toArtist, toPlaylist, toSubcount } from "@/utils/format/netease";
 
 const PAGE_SIZE = 50;
 
 /**
  * 通用分页直到拉完
- * @param fetcher 第 N 页拉取函数（offset/limit），返回 `{ data, hasMore }`
- * @param extract 单项 raw → Item
+ * @param fetcher - 第 N 页拉取函数（offset/limit），返回 `{ data, hasMore }`
+ * @param extract - 单项 raw → Item
  */
 const fetchAllPages = async <Item>(
   fetcher: (offset: number, limit: number) => Promise<{ data?: any[]; hasMore?: boolean }>,
@@ -48,7 +47,7 @@ export const fetchSubcount = async (): Promise<UserSubcount> => {
 /** 用户喜欢歌曲 id 列表 */
 export const fetchLikelist = async (uid: number): Promise<string[]> => {
   const body = ensureOk(await neteaseApi.likelist({ uid }));
-  if (!Array.isArray(body.ids)) throw new Error("网易云红心列表响应缺少 ids");
+  if (!Array.isArray(body.ids)) throw new Error("平台红心列表响应缺少 ids");
   return (body.ids as number[]).map(String);
 };
 
@@ -68,27 +67,16 @@ export const fetchUserArtists = (): Promise<Artist[]> =>
 
 /**
  * 切换红心状态
- * 优先调用新版 like_v1，失败时自动降级到旧版 like
  * @param trackId - 歌曲 ID
  * @param like - true 为红心，false 为取消红心
+ * @param uid - 当前登录账号 ID
  */
-export const toggleLikeSong = async (trackId: string, like: boolean): Promise<void> => {
-  try {
-    const res = await neteaseApi.like_v1<{ code?: number }>({ id: trackId, like });
-    if (Number(res?.code) === 200) return;
-    if (Number(res?.code) >= 500) {
-      throw new NeteaseApiError("网易云红心请求失败", Number(res.code), res);
-    }
-  } catch (err) {
-    if (
-      err instanceof NeteaseApiError &&
-      (isExplicitNeteaseAuthFailure(err) ||
-        Number((err.body as { code?: unknown } | undefined)?.code ?? err.status) >= 500)
-    ) {
-      throw err;
-    }
-  }
-  ensureOk(await neteaseApi.like({ id: trackId, like }));
+export const toggleLikeSong = async (
+  trackId: string,
+  like: boolean,
+  uid: number,
+): Promise<void> => {
+  ensureOk(await neteaseApi.song_like({ id: trackId, like, uid }));
 };
 
 /** 用户等级 */

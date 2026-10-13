@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   streamingStart: vi.fn(),
   streamingStop: vi.fn(),
   mediaEvent: (_event: { type: string; positionMs?: number }) => {},
+  scrobbleRestart: vi.fn(),
+  lastfmRestart: vi.fn(),
 }));
 vi.mock("electron", () => ({
   ipcMain: {
@@ -75,8 +77,16 @@ vi.mock("@main/utils/protocol", () => ({ toCacheUrl: () => undefined }));
 vi.mock("@main/utils/config", () => ({ appName: "SPlayer", getSongCacheDir: () => "cache" }));
 vi.mock("@main/utils/fetchBytes", () => ({}));
 vi.mock("@main/utils/powerBlocker", () => ({}));
-vi.mock("@main/services/lastfm", () => ({ onTrackLoaded: vi.fn() }));
-vi.mock("@main/services/neteaseScrobble", () => ({ onTrackLoaded: vi.fn() }));
+vi.mock("@main/services/lastfm", () => ({
+  onTrackLoaded: vi.fn(),
+  onStopped: vi.fn(),
+  onRepeatOneRestart: mocks.lastfmRestart,
+}));
+vi.mock("@main/services/neteaseScrobble", () => ({
+  onTrackLoaded: vi.fn(),
+  onStopped: vi.fn(),
+  onRepeatOneRestart: mocks.scrobbleRestart,
+}));
 vi.mock("@main/services/streaming/playback", () => ({
   prepareStreamingPlayback: mocks.streamingPrepare,
   startStreamingPlayback: mocks.streamingStart,
@@ -105,6 +115,17 @@ const options = { meta: { id: "next", title: "Next", source: "local", artists: [
 const invoke = (name: string, ...args: unknown[]) => mocks.handlers.get(name)!(null, ...args);
 
 describe("交接响应的主进程竞态保护", () => {
+  it("单曲重播先开启两种统计轮次，普通跳转不重置轮次", async () => {
+    expect(await invoke("player:seek", 0, true)).toEqual({ success: true });
+    expect(mocks.scrobbleRestart).toHaveBeenCalledOnce();
+    expect(mocks.lastfmRestart).toHaveBeenCalledOnce();
+    expect(mocks.scrobbleRestart.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.seek.mock.invocationCallOrder[0]!,
+    );
+    expect(await invoke("player:seek", 1000)).toEqual({ success: true });
+    expect(mocks.scrobbleRestart).toHaveBeenCalledOnce();
+    expect(mocks.lastfmRestart).toHaveBeenCalledOnce();
+  });
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -229,5 +250,20 @@ describe("交接响应的主进程竞态保护", () => {
     expect(await pending).toMatchObject({ success: false });
     expect(mocks.load).not.toHaveBeenCalled();
     expect(mocks.streamingStart).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["[DecodeFailed] invalid audio data", "FILE_DECODE_ERROR"],
+    ["[SourceNotFound] HTTP 404", "FILE_NOT_FOUND"],
+    ["[NetworkUnreachable] connection refused", "NETWORK_ERROR"],
+    ["[Device] output unavailable", "DEVICE_NOT_FOUND"],
+    ["[Cancelled] superseded", "LOAD_SUPERSEDED"],
+    ["unclassified remote error", "NETWORK_ERROR"],
+  ])("远程音源保留原生错误分类 %s", async (message, error) => {
+    mocks.load.mockRejectedValueOnce(new Error(message));
+    expect(await invoke("player:load", "https://music/song.flac", {})).toEqual({
+      success: false,
+      error,
+    });
   });
 });

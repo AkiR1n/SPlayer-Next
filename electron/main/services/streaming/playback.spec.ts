@@ -32,6 +32,29 @@ beforeEach(async () => {
   state.resolve.mockReset();
 });
 describe("主进程播放会话协调", () => {
+  it("同曲重播获取新的音源会话，按旧停止、新开始的顺序上报", async () => {
+    state.resolve.mockImplementation(async (_serverId, _trackId, sessionId) => ({
+      url: "https://server/audio?PlaySessionId=" + sessionId,
+      mediaSourceId: "media-source",
+    }));
+    const first = await prepareStreamingPlayback(track, "streaming://server/song");
+    startStreamingPlayback(track, first, 10000, true);
+    await vi.waitFor(() => expect(state.report).toHaveBeenCalledOnce());
+    await stopStreamingPlayback();
+    const second = await prepareStreamingPlayback(track, "streaming://server/song");
+    expect(second!.sessionId).not.toBe(first!.sessionId);
+    expect(new URL(second!.url).searchParams.get("PlaySessionId")).toBe(second!.sessionId);
+    startStreamingPlayback(track, second, 10000, false);
+    onStreamingState("playing");
+    await vi.waitFor(() => expect(state.report).toHaveBeenCalledTimes(3));
+    await stopStreamingPlayback();
+    expect(state.report.mock.calls.map(([, report]) => [report.sessionId, report.event])).toEqual([
+      [first!.sessionId, "start"],
+      [first!.sessionId, "stop"],
+      [second!.sessionId, "start"],
+      [second!.sessionId, "stop"],
+    ]);
+  });
   it("缓存加载不连接服务器，实际播放后才上报", async () => {
     const prepared = await prepareStreamingPlayback(track, "C:/cache/song.wav");
     expect(state.resolve).not.toHaveBeenCalled();

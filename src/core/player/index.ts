@@ -103,7 +103,7 @@ const skipOnFailure = async (
   consecutiveFailures++;
   if (
     consecutiveFailures >= MAX_CONSECUTIVE_FAILURES ||
-    consecutiveFailures >= queue.queueLength.value
+    (!useStatusStore().fmMode && consecutiveFailures >= queue.queueLength.value)
   ) {
     const reachedMax = consecutiveFailures >= MAX_CONSECUTIVE_FAILURES;
     consecutiveFailures = 0;
@@ -554,6 +554,27 @@ export const play = async (): Promise<void> => {
   }
 };
 
+/** 自然结束后重播当前歌曲，流媒体重新取址并建立独立会话 */
+export const restartCurrentTrack = async (): Promise<void> => {
+  const media = useMediaStore();
+  const track = media.track;
+  if (!track) return;
+  const status = useStatusStore();
+  const myPauseToken = pauseToken;
+  if (track.source === "streaming") {
+    const loading = loadTrack(track, media.playbackContext, false);
+    const token = trackToken;
+    await loading;
+    if (token !== trackToken || myPauseToken !== pauseToken || status.state !== "paused") return;
+  } else {
+    const seeking = seek(0, true);
+    const token = trackToken;
+    await seeking;
+    if (token !== trackToken || myPauseToken !== pauseToken) return;
+  }
+  await play();
+};
+
 /** 切换播放/暂停 */
 export const togglePlay = (): void => {
   const status = useStatusStore();
@@ -632,8 +653,9 @@ export const isSeeking = (): boolean => seekTarget !== null;
 /**
  * 跳转到指定播放位置
  * @param posMs - 目标位置（毫秒）
+ * @param restartRound - 是否为单曲循环开启新的统计轮次
  */
-export const seek = async (posMs: number): Promise<void> => {
+export const seek = async (posMs: number, restartRound = false): Promise<void> => {
   const status = useStatusStore();
   // 歌曲加载中 seek 无意义：引擎此刻没有可 seek 的解码线程，
   // 且 seekTarget 残留会让加载完成后的 position 推送被持续丢弃
@@ -647,7 +669,9 @@ export const seek = async (posMs: number): Promise<void> => {
   // 设置 seek 目标，屏蔽旧 position 推送
   seekTarget = posMs;
 
-  const result = await window.api.player.seek(posMs);
+  const result = await (restartRound
+    ? window.api.player.seek(posMs, true)
+    : window.api.player.seek(posMs));
   if (token !== trackToken) return;
   if (result.success) {
     status.position = posMs;
