@@ -44,6 +44,7 @@ export const registerStreamingIpc = (): void => {
         previous?.url !== input.url.trim().replace(/\/+$/, "") ||
         previous?.username !== input.username ||
         Boolean(input.password);
+      if (!identityChanged) return updateStreamingServer(serverId, input);
       cancelStreamingSync(serverId);
       await stopStreamingPlayer(serverId);
       const updated = updateStreamingServer(serverId, input);

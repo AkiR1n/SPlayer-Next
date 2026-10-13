@@ -74,5 +74,6 @@ describe("下载记录精确查询", () => {
     });
     expect(listCompletedPaths(task.track)).toEqual(["a.flac"]);
     expect(listCompletedPaths({ ...task.track, originalId: "other" })).toEqual([]);
+    expect(listCompletedPaths({ ...task.track, serverRevision: 1 })).toEqual([]);
   });
 });

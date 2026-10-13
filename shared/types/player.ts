@@ -109,6 +109,8 @@ export interface Track {
   serverId?: string;
   /** 流媒体服务器原生 ID（仅 source==='streaming'） */
   originalId?: string;
+  /** 流媒体账号或地址变更后的媒体身份代次 */
+  serverRevision?: number;
   /** 标题 */
   title: string;
   /** 注释/副标题 */

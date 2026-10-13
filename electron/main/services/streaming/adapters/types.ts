@@ -8,6 +8,13 @@ import type {
 /** 主进程流媒体协议适配器 */
 export interface StreamingAdapter {
   /**
+   * 生成原始文件下载地址，由服务端检查下载权限
+   * @param config - 已鉴权配置
+   * @param trackId - 服务端歌曲 ID
+   * @returns 原文件下载地址
+   */
+  getDownloadUrl(config: StreamingRuntimeConfig, trackId: string): Promise<string>;
+  /**
    * 遍历协议特有的全量歌曲索引
    * @param config - 配置与取消信号
    * @returns 完整歌曲分页

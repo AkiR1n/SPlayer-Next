@@ -5,6 +5,7 @@ import { StreamingPlaybackSession } from "./playbackSession";
 import type { StreamingPlaybackSource } from "./adapters/types";
 import { streamingSourceForTrack } from "@shared/utils/streamingSource";
 import { resolveStreamingMediaSource } from "./mediaSource";
+import { getStreamingConfig } from "./config";
 
 let active: { serverId: string; session: StreamingPlaybackSession } | undefined;
 let pendingStop: Promise<void> = Promise.resolve();
@@ -20,12 +21,21 @@ export const prepareStreamingPlayback = async (
   source: string,
 ): Promise<(StreamingPlaybackSource & { sessionId: string }) | undefined> => {
   if (track?.source !== "streaming" || !track.serverId || !track.originalId) return undefined;
+  const server = getStreamingConfig().servers.find((item) => item.id === track.serverId);
+  if (!server || (server.mediaRevision ?? 0) !== (track.serverRevision ?? 0))
+    throw new Error("流媒体账号或地址已更新，请重新选择歌曲");
   const sessionId = crypto.randomUUID();
   const remote = /^https?:\/\/|^streaming:/i.test(source);
   if (!remote) return { url: source, sessionId };
   if (source.startsWith("streaming:") && source !== streamingSourceForTrack(track))
     throw new Error("流媒体音源与歌曲身份不一致");
-  const playback = await resolveStreamingMediaSource(track.serverId, track.originalId, sessionId);
+  const playback = await resolveStreamingMediaSource(
+    track.serverId,
+    track.originalId,
+    sessionId,
+    undefined,
+    track.serverRevision,
+  );
   return { ...playback, sessionId };
 };
 

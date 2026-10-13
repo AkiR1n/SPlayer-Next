@@ -79,6 +79,11 @@ Server protocol clients live in the main process (`electron/main/services/stream
 
 Playback resolves remote streaming sources in the main process from `Track.serverId / originalId`; the renderer only passes a `streaming://` identity placeholder or a cached local path. Albums, artists, playlists and navigation retain the originating server ID
 
+Server identity changes advance `mediaRevision`, which is copied to `Track.serverRevision` and
+used to isolate playback, song caches, and completed downloads. Renaming a server preserves
+its media identity and active playback. Downloads use the protocol's original-file endpoint,
+with authentication recovery and permission checks performed in the main process
+
 ### Lyric Windows
 
 `windows/desktop-lyric`, `dynamic-island`, `taskbar-lyric` are independent Vue entries. Always use shared composables from `@windows/shared/`:

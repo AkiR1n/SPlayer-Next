@@ -8,6 +8,8 @@ export type StreamingServerType =
 export interface StreamingServerConfig {
   /** 配置代次，防止修改身份后旧请求写回 */
   revision?: number;
+  /** 账号或地址身份代次，仅改显示名称时保持不变 */
+  mediaRevision?: number;
   /** 唯一标识符 */
   id: string;
   /** 服务器显示名称 */

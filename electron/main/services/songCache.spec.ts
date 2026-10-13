@@ -64,6 +64,7 @@ describe("歌曲预载缓存生命周期", () => {
       "song",
       expect.any(String),
       expect.any(AbortSignal),
+      0,
     );
     expect(fetcher.mock.calls[0]?.[0]).toBe("https://server/audio?token=private");
     expect(state.rows.get("remote")).not.toHaveProperty("url");

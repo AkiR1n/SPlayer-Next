@@ -24,7 +24,8 @@ export const useStreamingStore = defineStore("streaming", () => {
   /** 是否正在等待首个媒体库快照 */
   const loading = ref(false);
   const syncError = ref("");
-  const favoriteOverrides = shallowRef(new Map<string, boolean>());
+  let favoriteRevision = 0;
+  const favoriteOverrides = shallowRef(new Map<string, { favorite: boolean; revision: number }>());
   const favoriteRequests = new Map<string, Promise<boolean>>();
   const togglingFavorites = new Set<string>();
 
@@ -64,10 +65,10 @@ export const useStreamingStore = defineStore("streaming", () => {
    */
   const applyFavorite = (change: StreamingFavoriteChange): void => {
     const id = `${change.serverId}:${change.trackId}`;
-    if (favoriteOverrides.value.get(id) === change.favorite) return;
+    if (favoriteOverrides.value.get(id)?.favorite === change.favorite) return;
     const overrides = new Map(favoriteOverrides.value);
     overrides.delete(id);
-    overrides.set(id, change.favorite);
+    overrides.set(id, { favorite: change.favorite, revision: ++favoriteRevision });
     while (overrides.size > 1024) overrides.delete(overrides.keys().next().value!);
     favoriteOverrides.value = overrides;
     songs.value = songs.value.map((track) =>
@@ -87,7 +88,7 @@ export const useStreamingStore = defineStore("streaming", () => {
    * @returns 最新收藏状态
    */
   const isFavorite = (track: Track): boolean =>
-    favoriteOverrides.value.get(track.id) ?? track.favorite ?? false;
+    favoriteOverrides.value.get(track.id)?.favorite ?? track.favorite ?? false;
 
   /**
    * 刷新单曲的服务端收藏状态，同曲并发读取共享一次请求
@@ -97,6 +98,9 @@ export const useStreamingStore = defineStore("streaming", () => {
   const refreshFavorite = (track: Track): Promise<boolean> => {
     if (!track.serverId || !track.originalId)
       return Promise.reject(new Error("流媒体歌曲缺少服务器身份"));
+    const server = servers.value.find((item) => item.id === track.serverId);
+    if (server && (server.mediaRevision ?? 0) !== (track.serverRevision ?? 0))
+      return Promise.reject(new Error("流媒体账号或地址已更新，请重新选择歌曲"));
     const existing = favoriteRequests.get(track.id);
     if (existing) return existing;
     const request = window.api.streaming
@@ -167,7 +171,10 @@ export const useStreamingStore = defineStore("streaming", () => {
       input.password
     )
       removeServerTracks(id);
-    if (activeServerId.value === id) {
+    if (
+      activeServerId.value === id &&
+      (previous?.mediaRevision ?? 0) !== (updated.mediaRevision ?? 0)
+    ) {
       connectionStatus.value = { connected: false };
       clearMemoryLists();
     }
@@ -284,17 +291,25 @@ export const useStreamingStore = defineStore("streaming", () => {
    */
   const loadLibrarySnapshot = async (serverId: string): Promise<void> => {
     const seq = ++snapshotFetchSeq;
+    const revision = favoriteRevision;
     try {
       const snapshot = await window.api.streaming.getSnapshot(serverId);
       if (seq !== snapshotFetchSeq || activeServerId.value !== serverId) return;
-      songs.value = snapshot.songs;
+      // 快照请求发出后确认的收藏优先于迟到的旧快照
+      songs.value = snapshot.songs.map((track) => {
+        const override = favoriteOverrides.value.get(track.id);
+        return override && override.revision > revision
+          ? { ...track, favorite: override.favorite }
+          : track;
+      });
       albums.value = snapshot.albums;
       artists.value = snapshot.artists;
       playlists.value = snapshot.playlists;
       const overrides = new Map(favoriteOverrides.value);
-      for (const key of overrides.keys()) if (key.startsWith(`${serverId}:`)) overrides.delete(key);
+      for (const [key, override] of overrides)
+        if (key.startsWith(`${serverId}:`) && override.revision <= revision) overrides.delete(key);
       favoriteOverrides.value = overrides;
-      const byId = new Map(snapshot.songs.map((track) => [track.id, track]));
+      const byId = new Map(songs.value.map((track) => [track.id, track]));
       updateQueueTracks(
         queue.value.flatMap((track) =>
           byId.has(track.id) ? [{ ...track, favorite: byId.get(track.id)!.favorite }] : [],

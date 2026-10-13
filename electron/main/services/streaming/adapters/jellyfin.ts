@@ -208,6 +208,7 @@ const toTrack = (config: StreamingRuntimeConfig, item: JellyItem): Track => {
     source: "streaming",
     serverId: config.id,
     originalId: item.Id,
+    serverRevision: config.mediaRevision ?? 0,
     favorite: Boolean(item.UserData?.IsFavorite),
     title: item.Name ?? "",
     artists:
@@ -302,6 +303,18 @@ export const authenticate = async (
 };
 
 export const jellyfinAdapter: StreamingAdapter = {
+  /**
+   * 通过下载端点获取原文件，由服务器检查下载权限
+   * @param config - 已鉴权配置
+   * @param trackId - 服务端歌曲 ID
+   * @returns 原文件下载地址
+   */
+  async getDownloadUrl(config, trackId) {
+    const params = new URLSearchParams();
+    requireUserId(config);
+    params.set(config.type === "emby" ? "api_key" : "ApiKey", config.accessToken!);
+    return `${config.url.replace(/\/+$/, "")}/Items/${encodeURIComponent(trackId)}/Download?${params}`;
+  },
   /**
    * 读取当前用户的歌曲收藏状态
    * @param config - 已鉴权配置

@@ -43,6 +43,22 @@ const input = {
 };
 
 describe("流媒体凭据存储", () => {
+  it("改名称保留媒体身份，改账号或密码推进媒体代次", async () => {
+    const service = await import("./config");
+    const server = service.addStreamingServer(input);
+    expect(server.mediaRevision).toBe(0);
+    expect(
+      service.updateStreamingServer(server.id, { ...input, name: "新名称", password: "" })
+        .mediaRevision,
+    ).toBe(0);
+    expect(
+      service.updateStreamingServer(server.id, { ...input, username: "other", password: "" })
+        .mediaRevision,
+    ).toBe(1);
+    expect(
+      service.updateStreamingServer(server.id, { ...input, username: "other" }).mediaRevision,
+    ).toBe(2);
+  });
   it("新密码带加密版本标识，renderer 视图没有凭据", async () => {
     const service = await import("./config");
     const server = service.addStreamingServer(input);

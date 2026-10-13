@@ -48,7 +48,7 @@ const isOnlinePlatform = (source: TrackSource): source is Platform =>
  */
 const cacheKeyForTrack = (track: Track, songLevel: QualityLevel): string | null => {
   if (track.source === "streaming" && track.serverId && track.originalId) {
-    return `s:${track.serverId}:${track.originalId}:`;
+    return `s:${track.serverId}:${track.originalId}:${track.serverRevision ? `r${track.serverRevision}` : ""}`;
   }
   if (track.source === "kugou" && track.id) {
     return `o:kugou:${track.id}:${track.extId ?? ""}:${songLevel}`;
@@ -271,7 +271,11 @@ export const resolveTrackSource = async (
         source: track.source,
         id: track.id,
         ...(track.source === "streaming"
-          ? { serverId: track.serverId, originalId: track.originalId }
+          ? {
+              serverId: track.serverId,
+              originalId: track.originalId,
+              serverRevision: track.serverRevision,
+            }
           : {}),
       });
       if (downloaded) return { source: downloaded, fromCache: false, provider: "download" };

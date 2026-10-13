@@ -406,6 +406,7 @@
     }
   },
   "streaming": {
+    "favoritesOnly": "Favorites only",
     "hint": "Connect to Media Source",
     "hintDetail": "Add a personal streaming server with encrypted configuration",
     "errorCode": {
@@ -421,6 +422,7 @@
       "playlists": "Playlists"
     },
     "empty": {
+      "noFavorites": "No favorite songs on this server",
       "noServer": "No streaming server configured",
       "addHint": "Click the button at the top right to add one",
       "goToSettings": "Go to settings",
@@ -2285,6 +2287,7 @@
     "last90Days": "Last 90 days"
   },
   "errors": {
+    "PERMISSION_DENIED": "This account does not have permission to perform this action",
     "dialogTitle": "Something went wrong",
     "deviceHint": "No audio output device detected. Please connect headphones or speakers and try again.",
     "DEVICE_NOT_FOUND": "No audio output device found",

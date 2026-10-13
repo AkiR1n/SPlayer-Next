@@ -13,6 +13,7 @@ const STORAGE_FILE = path.join(configDir, "streaming.json");
 
 interface PersistedServer {
   revision?: number;
+  mediaRevision?: number;
   id: string;
   name: string;
   type: StreamingServerConfig["type"];
@@ -93,6 +94,7 @@ const decryptPassword = (encrypted: string): string => {
  */
 const toServerConfig = (server: PersistedServer): StreamingServerConfig => ({
   revision: server.revision ?? 0,
+  mediaRevision: server.mediaRevision ?? 0,
   id: server.id,
   name: server.name,
   type: server.type,
@@ -169,13 +171,22 @@ export const updateStreamingServer = (
   const encryptedPassword = input.password
     ? encryptPassword(input.password)
     : server.encryptedPassword;
-  server.revision = (server.revision ?? 0) + 1;
+  const identityChanged = Boolean(
+    server.type !== input.type ||
+    server.url !== input.url.trim().replace(/\/+$/, "") ||
+    server.username !== input.username ||
+    input.password,
+  );
+  if (identityChanged) {
+    server.mediaRevision = (server.mediaRevision ?? 0) + 1;
+    server.revision = (server.revision ?? 0) + 1;
+    server.lastConnected = undefined;
+  }
   server.name = input.name.trim();
   server.type = input.type;
   server.url = input.url.trim().replace(/\/+$/, "");
   server.username = input.username;
   server.encryptedPassword = encryptedPassword;
-  server.lastConnected = undefined;
   save();
   return toServerConfig(server);
 };

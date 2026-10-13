@@ -267,6 +267,7 @@ const runDownload = async (
           identity.trackId,
           crypto.randomUUID(),
           controller.signal,
+          identity.serverRevision,
         )
       ).url;
     }

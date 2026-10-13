@@ -79,6 +79,34 @@ beforeEach(() => {
 });
 
 describe("流媒体收藏与快照状态", () => {
+  it("迟到快照不能覆盖请求期间已确认的收藏操作", async () => {
+    const store = useStreamingStore();
+    await store.init();
+    store.activeServerId = "server";
+    let finish!: (snapshot: unknown) => void;
+    state.snapshot.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const refresh = store.refreshLibrary(true);
+    state.favoriteChanged!({ serverId: "server", trackId: "song", favorite: true });
+    finish({ songs: [track], albums: [], artists: [], playlists: [] });
+    await refresh;
+    expect(store.songs[0].favorite).toBe(true);
+    expect(store.isFavorite(track)).toBe(true);
+    expect(state.media.track?.favorite).toBe(true);
+    expect(state.updateQueue).toHaveBeenLastCalledWith([{ ...track, favorite: true }]);
+    state.snapshot.mockResolvedValueOnce({
+      songs: [track],
+      albums: [],
+      artists: [],
+      playlists: [],
+    });
+    await store.refreshLibrary(true);
+    expect(store.isFavorite(store.songs[0])).toBe(false);
+  });
   it("切换收藏先读取服务端状态，不能直接反转旧队列状态", async () => {
     const store = useStreamingStore();
     expect(await store.toggleFavorite(track)).toBe(false);

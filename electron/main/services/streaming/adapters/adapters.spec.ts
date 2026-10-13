@@ -30,6 +30,41 @@ beforeEach(() => {
 const response = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200 });
 
 describe("流媒体协议契约", () => {
+  it("空媒体库的歌手错误 70 视为空列表，鉴权错误仍然失败", async () => {
+    fetchMock.mockResolvedValueOnce(
+      response({
+        "subsonic-response": {
+          status: "failed",
+          error: { code: 70, message: "Library not found or empty" },
+        },
+      }),
+    );
+    expect(await subsonicAdapter.listArtists(config)).toEqual([]);
+    fetchMock.mockResolvedValueOnce(
+      response({
+        "subsonic-response": { status: "failed", error: { code: 40, message: "Wrong password" } },
+      }),
+    );
+    await expect(subsonicAdapter.listArtists(config)).rejects.toMatchObject({ code: 40 });
+  });
+  it("下载使用原文件端点，不附带转码参数或播放会话", async () => {
+    const subsonic = new URL(
+      await subsonicAdapter.getDownloadUrl({ ...config, type: "navidrome" }, "song"),
+    );
+    expect(subsonic.pathname).toBe("/prefix/rest/download");
+    expect(subsonic.searchParams.get("v")).toBe("1.13.0");
+    expect(subsonic.searchParams.has("format")).toBe(false);
+    expect(subsonic.searchParams.has("maxBitRate")).toBe(false);
+    const jellyfin = new URL(await jellyfinAdapter.getDownloadUrl(config, "song/id"));
+    const emby = new URL(
+      await jellyfinAdapter.getDownloadUrl({ ...config, type: "emby" }, "song/id"),
+    );
+    expect(jellyfin.pathname).toBe("/prefix/Items/song%2Fid/Download");
+    expect(jellyfin.searchParams.get("ApiKey")).toBe("token");
+    expect(emby.searchParams.get("api_key")).toBe("token");
+    expect(jellyfin.searchParams.has("PlaySessionId")).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("旧 Subsonic 目录遍历保留无专辑歌曲并去除重复目录", async () => {
     fetchMock.mockImplementation(async (source: string) => {
       const url = new URL(source);

@@ -7,7 +7,8 @@ import { StreamingRequestError, isUnsupportedEndpoint } from "../errors";
 import { toStreamingLyrics } from "../lyrics";
 import { streamPages } from "../pagination";
 
-const API_VERSION = "1.16.1";
+// 基础端点只需要 1.13.0 的令牌鉴权，避免拒绝实现 1.15.0 的旧服务器
+const API_VERSION = "1.13.0";
 const CLIENT_NAME = "SPlayer-Next";
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -168,6 +169,7 @@ const toTrack = (config: StreamingRuntimeConfig, song: SubsonicSong): Track => {
     source: "streaming",
     serverId: config.id,
     originalId: song.id,
+    serverRevision: config.mediaRevision ?? 0,
     favorite: Boolean(song.starred),
     title: song.title || "",
     artists,
@@ -233,6 +235,15 @@ const toPlaylist = (config: StreamingRuntimeConfig, playlist: SubsonicPlaylist):
 });
 
 export const subsonicAdapter: StreamingAdapter = {
+  /**
+   * 下载服务器保存的原始文件，不采用播放转码配置
+   * @param config - 已鉴权配置
+   * @param trackId - 服务端歌曲 ID
+   * @returns 原文件下载地址
+   */
+  async getDownloadUrl(config, trackId) {
+    return buildUrl(config, "download", { id: trackId });
+  },
   /**
    * 按服务器协议能力遍历全部歌曲
    * @param config - 主进程配置与取消信号
@@ -389,12 +400,18 @@ export const subsonicAdapter: StreamingAdapter = {
    * @returns 歌手列表
    */
   async listArtists(config) {
-    const result = await callApi<{
-      artists?: { index?: { artist?: SubsonicArtist[] }[] };
-    }>(config, "getArtists");
-    return (result.artists?.index ?? []).flatMap((index) =>
-      (index.artist ?? []).map((artist) => toArtist(config, artist)),
-    );
+    try {
+      const result = await callApi<{
+        artists?: { index?: { artist?: SubsonicArtist[] }[] };
+      }>(config, "getArtists");
+      return (result.artists?.index ?? []).flatMap((index) =>
+        (index.artist ?? []).map((artist) => toArtist(config, artist)),
+      );
+    } catch (error) {
+      // Navidrome 在媒体库为空时通过协议错误 70 表示没有歌手
+      if (error instanceof StreamingRequestError && error.code === 70) return [];
+      throw error;
+    }
   },
 
   /**
