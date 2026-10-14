@@ -15,7 +15,7 @@ No permission required; minimum API level 1.
 
 ## Capability registration {#register}
 
-Declare capabilities during initialization. A plugin can combine source resolution, event subscriptions, settings, and menus.
+Declare capabilities during initialization. A plugin can combine source resolution, event subscriptions, settings, and menus. On subsequent calls, omitted fields remain unchanged; supplied event, control marker, setting, and menu fields replace their previous declarations.
 
 **Call:** `splayer.register(args)`
 

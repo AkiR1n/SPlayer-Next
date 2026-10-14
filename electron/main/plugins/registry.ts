@@ -156,6 +156,9 @@ class PluginRegistry extends EventEmitter {
   init(): void {
     ensureDirs();
     pluginHost.setOnHostLost(() => this.handleHostLost());
+    pluginHost.setOnHostStable(() => {
+      this.hostRestartAttempts = 0;
+    });
     const stored = readStored();
     const enabledMap = store.get("plugins.enabled") as Record<string, boolean>;
 
@@ -514,7 +517,6 @@ class PluginRegistry extends EventEmitter {
 
     const callbacks: PluginHostCallbacks = {
       onReady: (sources) => {
-        this.hostRestartAttempts = 0; // host 成功带起插件 → 重置 host 重启计数
         // 同步 register 时 registered 先于 ready 到达，ready 必须保留已登记的
         // events/controls/settings/menus，否则会覆盖掉注册信息、导致设置表单不渲染
         this.setStatus(rt, {

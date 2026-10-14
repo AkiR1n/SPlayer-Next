@@ -27,6 +27,7 @@ import type {
   SandboxOut,
   SourceCapability,
   PluginPlayerApi,
+  PluginRegistration,
 } from "@shared/types/plugin";
 import { installLxShim } from "./lx-shim";
 
@@ -104,6 +105,7 @@ interface PluginContextRecord {
   settingChangeHandlers: Map<string, ((value: unknown) => void)[]>;
   /** 已注册 sources */
   registeredSources: Record<string, SourceCapability>;
+  registration: PluginRegistration;
   /** 在途 action 的 AbortController，key = requestId */
   inflight: Map<string, AbortController>;
   /** hostCall 回调登记，key = callId */
@@ -209,14 +211,14 @@ const buildSplayer = (record: PluginContextRecord, spec: LoadSpec): HostApi => (
           }
         }
       }
-      send({
-        kind: "registered",
-        pluginId: record.pluginId,
-        events: Array.isArray(args.events) ? args.events : [],
-        controls: Boolean(args.controls),
-        settings: Array.isArray(args.settings) ? args.settings : [],
-        menus: Array.isArray(args.menus) ? args.menus : [],
-      });
+      const previous = record.registration;
+      record.registration = {
+        events: Array.isArray(args.events) ? args.events : previous.events,
+        controls: args.controls === undefined ? previous.controls : Boolean(args.controls),
+        settings: Array.isArray(args.settings) ? args.settings : previous.settings,
+        menus: Array.isArray(args.menus) ? args.menus : previous.menus,
+      };
+      send({ kind: "registered", pluginId: record.pluginId, ...record.registration });
     }
   },
 
@@ -431,6 +433,7 @@ const loadPluginIntoContext = (spec: LoadSpec): void => {
     playerEventHandlers: new Map(),
     settingChangeHandlers: new Map(),
     registeredSources: {},
+    registration: { events: [], controls: false, settings: [], menus: [] },
     inflight: new Map(),
     hostCallWaiters: new Map(),
     userSettingsCache: spec.userSettings ?? {},

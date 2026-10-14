@@ -60,6 +60,7 @@ class PluginHost {
   private startTimer: NodeJS.Timeout | null = null;
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private heartbeatMisses = 0;
+  private healthyHeartbeats = 0;
 
   private readonly callbacks = new Map<string, PluginHostCallbacks>();
   /** 已 ready 的插件 id（区别于"已登记 callbacks"） */
@@ -77,6 +78,13 @@ class PluginHost {
   private onHostLostGlobal: (() => void) | null = null;
   setOnHostLost(cb: () => void): void {
     this.onHostLostGlobal = cb;
+  }
+
+  private onHostStableGlobal: (() => void) | null = null;
+
+  /** 连续收到心跳后通知注册表恢复自动重启额度 */
+  setOnHostStable(cb: () => void): void {
+    this.onHostStableGlobal = cb;
   }
 
   /** 懒启动 host 进程，resolve 于 hostReady */
@@ -239,6 +247,12 @@ class PluginHost {
       }
       case "pong":
         this.heartbeatMisses = 0;
+        if (
+          this.healthyHeartbeats < HEARTBEAT_MAX_MISSES &&
+          ++this.healthyHeartbeats === HEARTBEAT_MAX_MISSES
+        ) {
+          this.onHostStableGlobal?.();
+        }
         return;
       case "ready": {
         const pending = this.pendingLoads.get(msg.pluginId);
@@ -335,8 +349,10 @@ class PluginHost {
   private startHeartbeat(): void {
     this.stopHeartbeat();
     this.heartbeatMisses = 0;
+    this.healthyHeartbeats = 0;
     this.heartbeatTimer = setInterval(() => {
       if (!this.child) return;
+      if (this.heartbeatMisses > 0) this.healthyHeartbeats = 0;
       this.heartbeatMisses++;
       if (this.heartbeatMisses > HEARTBEAT_MAX_MISSES) {
         coreLog.warn("[plugin-host] 心跳丢失，重启 host");
