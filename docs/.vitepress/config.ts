@@ -1,4 +1,5 @@
-import { defineConfig, type DefaultTheme } from "vitepress";
+import { defineConfig, type DefaultTheme, type UserConfig } from "vitepress";
+import llmstxt from "vitepress-plugin-llms";
 
 const socialLinks: DefaultTheme.SocialLink[] = [
   { icon: "github", link: "https://github.com/SPlayer-Dev/SPlayer-Next" },
@@ -45,11 +46,18 @@ const zhTheme: DefaultTheme.Config = {
       items: [
         { text: "总览与架构", link: "/plugins/" },
         { text: "插件使用", link: "/plugins-usage" },
-        { text: "插件 API 级别", link: "/plugins/changelog" },
-        { text: "通用 API", link: "/plugins/api" },
-        { text: "音源解析", link: "/plugins/source" },
-        { text: "播放控制", link: "/plugins/control" },
-        { text: "插件更新", link: "/plugins/update" },
+        {
+          text: "插件开发",
+          link: "/plugins/development",
+          collapsed: false,
+          items: [
+            { text: "插件 API 级别", link: "/plugins/changelog" },
+            { text: "通用 API", link: "/plugins/api" },
+            { text: "音源解析", link: "/plugins/source" },
+            { text: "播放控制", link: "/plugins/control" },
+            { text: "插件更新", link: "/plugins/update" },
+          ],
+        },
         { text: "LX 兼容", link: "/plugins/lx" },
       ],
     },
@@ -138,11 +146,18 @@ const enTheme: DefaultTheme.Config = {
       items: [
         { text: "Overview and Architecture", link: "/en/plugins/" },
         { text: "Using Plugins", link: "/en/plugins-usage" },
-        { text: "Plugin API Levels", link: "/en/plugins/changelog" },
-        { text: "Common APIs", link: "/en/plugins/api" },
-        { text: "Source Resolution", link: "/en/plugins/source" },
-        { text: "Playback Control", link: "/en/plugins/control" },
-        { text: "Plugin Updates", link: "/en/plugins/update" },
+        {
+          text: "Plugin Development",
+          link: "/en/plugins/development",
+          collapsed: false,
+          items: [
+            { text: "Plugin API Levels", link: "/en/plugins/changelog" },
+            { text: "Common APIs", link: "/en/plugins/api" },
+            { text: "Source Resolution", link: "/en/plugins/source" },
+            { text: "Playback Control", link: "/en/plugins/control" },
+            { text: "Plugin Updates", link: "/en/plugins/update" },
+          ],
+        },
         { text: "LX Compatibility", link: "/en/plugins/lx" },
       ],
     },
@@ -191,6 +206,10 @@ const enTheme: DefaultTheme.Config = {
 };
 
 export default defineConfig({
+  // pnpm 为同版 Vite 建立了不同的 peer 依赖实例，运行时插件接口一致。
+  vite: {
+    plugins: llmstxt({ workDir: "en" }) as unknown as NonNullable<UserConfig["vite"]>["plugins"],
+  },
   title: "SPlayer-Next",
   srcExclude: ["superpowers/**"],
   head: [

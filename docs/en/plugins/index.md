@@ -2,14 +2,15 @@
 
 Plugins are JavaScript files that use the injected `splayer` object to extend SPlayer-Next.
 
-| Guide                                      | Contents                                                                                    |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| [Common APIs](/en/plugins/api)             | HTTP requests, music search, platform APIs, notifications, storage, settings, and utilities |
-| [Source resolution](/en/plugins/source)    | Playback URLs, lyrics, covers, and comments                                                 |
-| [Playback control](/en/plugins/control)    | Playback events, player controls, queues, and track menus                                   |
-| [Plugin API Levels](/en/plugins/changelog) | Capabilities introduced at each API level                                                   |
-| [Plugin updates](/en/plugins/update)       | Version metadata and update delivery                                                        |
-| [LX Compatibility](/en/plugins/lx)         | Importing LX scripts, supported APIs, and update alerts                                     |
+| Guide                                         | Contents                                                                                    |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [Plugin Development](/en/plugins/development) | First plugin, development workflow, and Agent resources                                     |
+| [Common APIs](/en/plugins/api)                | HTTP requests, music search, platform APIs, notifications, storage, settings, and utilities |
+| [Source resolution](/en/plugins/source)       | Playback URLs, lyrics, covers, and comments                                                 |
+| [Playback control](/en/plugins/control)       | Playback events, player controls, queues, and track menus                                   |
+| [Plugin API Levels](/en/plugins/changelog)    | Capabilities introduced at each API level                                                   |
+| [Plugin updates](/en/plugins/update)          | Version metadata and update delivery                                                        |
+| [LX Compatibility](/en/plugins/lx)            | Importing LX scripts, supported APIs, and update alerts                                     |
 
 For installation and permission settings, see [Using Plugins](/en/plugins-usage).
 
