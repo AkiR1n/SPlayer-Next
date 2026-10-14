@@ -133,8 +133,11 @@ class PluginHost {
     spec: PluginLoadSpec,
     callbacks: PluginHostCallbacks,
   ): Promise<Record<string, SourceCapability>> {
-    await this.ensureStarted();
     this.callbacks.set(spec.pluginId, callbacks);
+    await this.ensureStarted();
+    if (this.callbacks.get(spec.pluginId) !== callbacks) {
+      throw Object.assign(new Error("plugin unloaded"), { code: PluginErrorCodes.NOT_READY });
+    }
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pendingLoads.delete(spec.pluginId);

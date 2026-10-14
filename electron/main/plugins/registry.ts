@@ -198,6 +198,20 @@ class PluginRegistry extends EventEmitter {
       });
     }
 
+    const savedSettings = store.get("plugins.perPlugin");
+    const settingsById = { ...savedSettings };
+    let settingsChanged = false;
+    // 旧设置按 dot path 保存；先读取所有插件，避免相近 ID 在转换时互相覆盖。
+    for (const id of this.runtimes.keys()) {
+      if (!id.includes(".") || Object.hasOwn(savedSettings, id)) continue;
+      const values = store.get(`plugins.perPlugin.${id}` as never);
+      if (values && typeof values === "object" && !Array.isArray(values)) {
+        settingsById[id] = values as Record<string, unknown>;
+        settingsChanged = true;
+      }
+    }
+    if (settingsChanged) store.set("plugins.perPlugin", settingsById);
+
     // 启动已启用的插件
     for (const rt of this.runtimes.values()) {
       if (rt.enabled) this.start(rt).catch(() => {});
@@ -212,14 +226,17 @@ class PluginRegistry extends EventEmitter {
       enabled: rt.enabled,
       status: rt.status,
       updateInfo: rt.updateInfo,
-      settingsValues:
-        (store.get(`plugins.perPlugin.${rt.manifest.id}` as never) as Record<string, unknown>) ??
-        {},
+      settingsValues: this.settingsOf(rt.manifest.id),
     }));
   }
 
   getRuntime(id: string): PluginRuntime | undefined {
     return this.runtimes.get(id);
+  }
+
+  private settingsOf(id: string): Record<string, unknown> {
+    const all = store.get("plugins.perPlugin");
+    return Object.hasOwn(all, id) ? all[id] : {};
   }
 
   /** 获取用户对当前声明的授权，避免带点的插件 ID 被解释为配置路径 */
@@ -337,9 +354,7 @@ class PluginRegistry extends EventEmitter {
       enabled: rt.enabled,
       status: rt.status,
       updateInfo: rt.updateInfo,
-      settingsValues:
-        (store.get(`plugins.perPlugin.${rt.manifest.id}` as never) as Record<string, unknown>) ??
-        {},
+      settingsValues: this.settingsOf(rt.manifest.id),
     };
   }
 
@@ -432,8 +447,7 @@ class PluginRegistry extends EventEmitter {
       enabled: rt.enabled,
       status: rt.status,
       updateInfo: rt.updateInfo,
-      settingsValues:
-        (store.get(`plugins.perPlugin.${id}` as never) as Record<string, unknown>) ?? {},
+      settingsValues: this.settingsOf(id),
     };
   }
 
@@ -496,8 +510,7 @@ class PluginRegistry extends EventEmitter {
     rt.hostSession = hostSession;
     this.setStatus(rt, { state: "loading" });
 
-    const userSettings =
-      (store.get(`plugins.perPlugin.${id}` as never) as Record<string, unknown> | undefined) ?? {};
+    const userSettings = this.settingsOf(id);
 
     const spec: PluginLoadSpec = {
       pluginId: id,
@@ -608,6 +621,7 @@ class PluginRegistry extends EventEmitter {
     try {
       await pluginHost.loadPlugin(spec, callbacks);
     } catch (err) {
+      if (rt.hostSession !== hostSession) return;
       const code = ((err as any)?.code as string) ?? PluginErrorCodes.UNKNOWN;
       // host 丢失由 handleHostLost 统一重启；期间被 stop/禁用/已 ready 改写则不覆盖
       if (code !== PluginErrorCodes.WORKER_CRASHED && rt.enabled && rt.status.state === "loading") {
@@ -616,7 +630,7 @@ class PluginRegistry extends EventEmitter {
         this.setStatus(rt, { state: "error", error: { code, message } });
       }
     } finally {
-      rt.loading = false;
+      if (rt.hostSession === hostSession) rt.loading = false;
     }
   }
 
@@ -679,9 +693,7 @@ class PluginRegistry extends EventEmitter {
       enabled: rt.enabled,
       status,
       updateInfo: rt.updateInfo,
-      settingsValues:
-        (store.get(`plugins.perPlugin.${rt.manifest.id}` as never) as Record<string, unknown>) ??
-        {},
+      settingsValues: this.settingsOf(rt.manifest.id),
     } satisfies PluginInfo);
     this.notifyPlaybackActivity(hadSubscribers);
   }
@@ -761,10 +773,10 @@ class PluginRegistry extends EventEmitter {
     if (!item) return;
     const sanitized = sanitizeSettingValue(item, value);
     const all = {
-      ...((store.get(`plugins.perPlugin.${id}` as never) as Record<string, unknown>) ?? {}),
+      ...this.settingsOf(id),
       [key]: sanitized,
     };
-    store.set(`plugins.perPlugin.${id}` as never, all);
+    store.set("plugins.perPlugin", { ...store.get("plugins.perPlugin"), [id]: all });
     if (pluginHost.isReady(id)) pluginHost.sendSettingsUpdate(id, { [key]: sanitized });
   }
 
