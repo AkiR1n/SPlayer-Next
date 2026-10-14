@@ -31,25 +31,25 @@ MCP 服务默认关闭。先在 **设置 → AI 集成 → MCP** 中启用，再
 
 ## 工具
 
-| 工具                  | 参数                                   | 说明                                       |
-| --------------------- | -------------------------------------- | ------------------------------------------ |
-| `get_playback_status` | —                                      | 获取播放状态、进度、音量和播放模式         |
-| `get_now_playing`     | —                                      | 获取不含完整歌词正文的当前曲目轻量快照     |
-| `play`                | —                                      | 继续播放                                   |
-| `pause`               | —                                      | 暂停播放                                   |
-| `stop`                | —                                      | 停止播放                                   |
-| `next_track`          | —                                      | 下一曲                                     |
-| `previous_track`      | —                                      | 上一曲                                     |
-| `seek`                | `positionMs`                           | 跳转到指定毫秒位置                         |
-| `set_volume`          | `volume`                               | 设置音量，范围 `0` 到 `1`                  |
-| `set_play_mode`       | `repeat?`, `shuffle?`                  | 设置循环和随机播放模式                     |
-| `play_track`          | `trackId?` 或 `track?`                 | 按曲目 ID（推荐）或完整 Track 立即播放     |
-| `add_to_queue`        | `trackIds?` 或 `tracks?`, `position?`  | 添加最多 50 首；`position` 为 `next`/`end` |
-| `search_library`      | `query`, `limit?`                      | 搜索本地曲库，默认返回 20 条，最多 100 条  |
-| `search_online_songs` | `platform`, `query`, `page?`, `limit?` | 搜索在线音乐资源，单页最多返回 50 条       |
-| `get_random_tracks`   | `limit?`                               | 随机获取曲目，默认 10 条，最多 50 条       |
-| `list_albums`         | `limit?`                               | 获取专辑摘要，默认 50 条，最多 100 条      |
-| `list_artists`        | `limit?`                               | 获取艺术家摘要，默认 50 条，最多 100 条    |
+| 工具                  | 参数                                   | 说明                                               |
+| --------------------- | -------------------------------------- | -------------------------------------------------- |
+| `get_playback_status` | —                                      | 获取播放状态、进度、音量和播放模式                 |
+| `get_now_playing`     | —                                      | 获取不含完整歌词正文的当前曲目轻量快照             |
+| `play`                | —                                      | 继续播放                                           |
+| `pause`               | —                                      | 暂停播放                                           |
+| `stop`                | —                                      | 停止播放                                           |
+| `next_track`          | —                                      | 下一曲                                             |
+| `previous_track`      | —                                      | 上一曲                                             |
+| `seek`                | `positionMs`                           | 跳转到指定毫秒位置                                 |
+| `set_volume`          | `volume`                               | 设置音量，范围 `0` 到 `1`                          |
+| `set_play_mode`       | `repeat?`, `shuffle?`                  | 设置循环和随机播放模式                             |
+| `play_track`          | `track`                                | 传入完整 Track 请求播放，可直接使用搜索结果        |
+| `add_to_queue`        | `tracks`, `position?`                  | 添加 1–50 个完整 Track；`position` 为 `next`/`end` |
+| `search_library`      | `query`, `limit?`                      | 搜索本地曲库，默认返回 20 条，最多 100 条          |
+| `search_online_songs` | `platform`, `query`, `page?`, `limit?` | 搜索在线音乐资源，单页最多返回 50 条               |
+| `get_random_tracks`   | `limit?`                               | 随机获取曲目，默认 10 条，最多 50 条               |
+| `list_albums`         | `limit?`                               | 获取专辑摘要，默认 50 条，最多 100 条              |
+| `list_artists`        | `limit?`                               | 获取艺术家摘要，默认 50 条，最多 100 条            |
 
 ## 资源
 

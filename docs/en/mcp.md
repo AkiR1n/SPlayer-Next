@@ -29,22 +29,22 @@ Client configuration fields vary. Keep SPlayer-Next running while the client is 
 
 ## Tools
 
-| Tool                            | Parameters                             | Description                                            |
-| ------------------------------- | -------------------------------------- | ------------------------------------------------------ |
-| `get_playback_status`           | —                                      | Playback state, position, volume, and modes            |
-| `get_now_playing`               | —                                      | Lightweight current-track snapshot without full lyrics |
-| `play` / `pause` / `stop`       | —                                      | Playback control                                       |
-| `next_track` / `previous_track` | —                                      | Change track                                           |
-| `seek`                          | `positionMs`                           | Seek to a millisecond position                         |
-| `set_volume`                    | `volume`                               | Set volume from `0` to `1`                             |
-| `set_play_mode`                 | `repeat?`, `shuffle?`                  | Configure repeat and shuffle                           |
-| `play_track`                    | `trackId?` or `track?`                 | Play by track ID (preferred) or full Track             |
-| `add_to_queue`                  | `trackIds?` or `tracks?`, `position?`  | Add up to 50 tracks at `next` or `end`                 |
-| `search_library`                | `query`, `limit?`                      | Search the local library; default 20, max 100          |
-| `search_online_songs`           | `platform`, `query`, `page?`, `limit?` | Search online sources; max 50 per page                 |
-| `get_random_tracks`             | `limit?`                               | Random tracks; default 10, max 50                      |
-| `list_albums`                   | `limit?`                               | Album summaries; default 50, max 100                   |
-| `list_artists`                  | `limit?`                               | Artist summaries; default 50, max 100                  |
+| Tool                            | Parameters                             | Description                                                |
+| ------------------------------- | -------------------------------------- | ---------------------------------------------------------- |
+| `get_playback_status`           | —                                      | Playback state, position, volume, and modes                |
+| `get_now_playing`               | —                                      | Lightweight current-track snapshot without full lyrics     |
+| `play` / `pause` / `stop`       | —                                      | Playback control                                           |
+| `next_track` / `previous_track` | —                                      | Change track                                               |
+| `seek`                          | `positionMs`                           | Seek to a millisecond position                             |
+| `set_volume`                    | `volume`                               | Set volume from `0` to `1`                                 |
+| `set_play_mode`                 | `repeat?`, `shuffle?`                  | Configure repeat and shuffle                               |
+| `play_track`                    | `track`                                | Request playback with a complete Track from search results |
+| `add_to_queue`                  | `tracks`, `position?`                  | Add 1–50 complete Tracks at `next` or `end`                |
+| `search_library`                | `query`, `limit?`                      | Search the local library; default 20, max 100              |
+| `search_online_songs`           | `platform`, `query`, `page?`, `limit?` | Search online sources; max 50 per page                     |
+| `get_random_tracks`             | `limit?`                               | Random tracks; default 10, max 50                          |
+| `list_albums`                   | `limit?`                               | Album summaries; default 50, max 100                       |
+| `list_artists`                  | `limit?`                               | Artist summaries; default 50, max 100                      |
 
 ## Resources
 

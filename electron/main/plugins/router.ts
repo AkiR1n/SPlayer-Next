@@ -97,6 +97,11 @@ export const resolveUrl = async (args: PluginResolveUrlArgs): Promise<MusicUrlRe
  * @param args 菜单项参数
  */
 export const invokeMenu = async (args: PluginInvokeMenuArgs): Promise<MenuClickRes> => {
+  if (!pluginRegistry.getGrantedPermissions(args.pluginId).includes("ui")) {
+    throw Object.assign(new Error("Plugin UI permission denied"), {
+      code: PluginErrorCodes.PERMISSION_DENIED,
+    });
+  }
   const rt = pluginRegistry.getRuntime(args.pluginId);
   if (!rt) {
     throw Object.assign(new Error(`plugin ${args.pluginId} not found`), {
@@ -109,7 +114,13 @@ export const invokeMenu = async (args: PluginInvokeMenuArgs): Promise<MenuClickR
     });
   }
   const params: MenuClickReq = { menuId: args.menuId, track: args.track };
-  return await callOn<MenuClickRes>(rt, "menuClick", params, ACTION_TIMEOUTS.menuClick);
+  const result = await callOn<MenuClickRes>(rt, "menuClick", params, ACTION_TIMEOUTS.menuClick);
+  if (!pluginRegistry.getGrantedPermissions(args.pluginId).includes("ui")) {
+    throw Object.assign(new Error("Plugin UI permission denied"), {
+      code: PluginErrorCodes.PERMISSION_DENIED,
+    });
+  }
+  return result;
 };
 
 /** 在某插件上搜某源候选（host 元数据匹配用） */

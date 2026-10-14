@@ -6,7 +6,7 @@
 
 ### Track
 
-一首歌曲的完整信息。控制插件的 [`trackChange`](/plugins/control#监听播放事件) 事件载荷与菜单点击（[`menuClick`](/plugins/control#菜单扩展)）入参的 `track` 均为此对象。
+一首歌曲的完整信息。插件的 [`trackChange`](/plugins/control#events) 事件载荷与菜单点击（[`menuClick`](/plugins/api#menus)）入参的 `track` 均为此对象。
 
 | 字段            | 类型                               | 说明                                  |
 | --------------- | ---------------------------------- | ------------------------------------- |
@@ -41,7 +41,7 @@
 
 ### TrackFee
 
-付费标记遵循网易云 `fee` 规范：`0` 免费、`1` VIP、`4` 需购买（数字专辑等）、`8` 受限音质。
+付费标记：`0` 免费、`1` VIP、`4` 需购买（数字专辑等）、`8` 受限音质。
 
 ### Artist
 
@@ -77,7 +77,7 @@
 
 ### LyricLine
 
-一行歌词。控制插件的 [`lyricChange`](/plugins/control#监听播放事件) 事件载荷 `lines` 即 `LyricLine[]`。
+一行歌词。插件的 [`lyricChange`](/plugins/control#events) 事件载荷 `lines` 即 `LyricLine[]`。
 
 | 字段              | 类型                                     | 说明                                           |
 | ----------------- | ---------------------------------------- | ---------------------------------------------- |

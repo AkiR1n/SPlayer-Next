@@ -3,7 +3,6 @@ import { callNetease } from "@main/apis/netease";
 import { callQQMusic } from "@main/apis/qqmusic";
 import type { Track, TrackFee } from "@shared/types/player";
 import type { Platform } from "@shared/types/platform";
-import { cacheTracks } from "./cache";
 
 interface RawArtist {
   id?: number | string;
@@ -45,13 +44,7 @@ interface KugouSong {
   duration?: number;
 }
 
-export interface OnlineSearchResult {
-  platform: Platform;
-  page: number;
-  total: number;
-  hasMore: boolean;
-  tracks: Track[];
-}
+import type { OnlineSearchResult } from "@shared/types/music";
 
 const sizedNeteaseCover = (url: string | undefined, size: number): string | undefined =>
   url ? `${url}${url.includes("?param=") ? "" : `?param=${size}y${size}`}` : undefined;
@@ -115,7 +108,6 @@ const result = (
   total: number,
   tracks: Track[],
 ): OnlineSearchResult => {
-  cacheTracks(tracks);
   return {
     platform,
     page,

@@ -1,7 +1,7 @@
 /**
  * 播放控制聚合入口
  *
- * 把"外部来源"（系统媒体、HTTP/WS 外部 API、控制类插件）发起的播放控制
+ * 把"外部来源"（系统媒体、HTTP/WS 外部 API、插件）发起的播放控制
  * 收敛到一处：引擎直控 + 必要时通知渲染层补记账。
  */
 
@@ -10,7 +10,9 @@ import * as neteaseScrobble from "@main/services/neteaseScrobble";
 import * as lastfm from "@main/services/lastfm";
 import { sendToMain } from "@main/utils/broadcast";
 import { toMs } from "@main/utils/time";
-import type { ShuffleMode, RepeatMode, Track } from "@shared/types/player";
+import type { ShuffleMode, RepeatMode, Track, PlayerState } from "@shared/types/player";
+import type { PlaybackStatusSnapshot } from "@shared/types/music";
+import { getTrayPlayMode } from "@main/services/tray";
 
 /**
  * 跳转（毫秒）
@@ -24,6 +26,17 @@ const seek = (positionMs: number): Promise<void> => {
 };
 
 export const playerControl = {
+  getStatus: (): PlaybackStatusSnapshot => {
+    const status = getPlayer().getStatus();
+    return {
+      state: status.state as PlayerState,
+      positionMs: toMs(status.position),
+      durationMs: toMs(status.duration),
+      volume: status.volume,
+      isFinished: status.isFinished,
+      ...getTrayPlayMode(),
+    };
+  },
   play: (): void =>
     void getPlayer()
       .play()

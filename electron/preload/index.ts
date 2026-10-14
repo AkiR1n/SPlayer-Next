@@ -4,6 +4,7 @@ import { electronAPI } from "@electron-toolkit/preload";
 import type { ExternalApiStatus, McpStatus, TaskbarLyricSettings } from "@shared/types/settings";
 import type {
   PluginInfo,
+  PluginGrant,
   PluginResolveUrlArgs,
   PluginInvokeMenuArgs,
   PluginMatchLyricArgs,
@@ -406,6 +407,8 @@ const api = {
       subscribe<TaskbarLyricSettings>("taskbarLyric:configChange", callback),
   },
   plugins: {
+    setPermission: (id: string, grant: PluginGrant, enabled: boolean) =>
+      ipcRenderer.invoke("plugin:setPermission", id, grant, enabled),
     // 列出所有已安装插件
     list: () => ipcRenderer.invoke("plugin:list"),
     // 从指定路径导入插件
@@ -419,7 +422,7 @@ const api = {
     // 启用/禁用
     setEnabled: (id: string, enabled: boolean) =>
       ipcRenderer.invoke("plugin:setEnabled", id, enabled),
-    // 写入控制类插件配置项
+    // 写入插件配置项
     setSetting: (id: string, key: string, value: unknown) =>
       ipcRenderer.invoke("plugin:setSetting", id, key, value),
     // 手动检查更新

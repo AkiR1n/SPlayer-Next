@@ -144,7 +144,7 @@ export const initApp = (): void => {
     initLastfm();
     // 初始化插件系统
     pluginRegistry.init();
-    // 初始化播放事件桥（需在 pluginRegistry.init 之后，读 hasEnabledControlPlugin）
+    // 初始化播放事件桥
     initPlaybackBridge();
     // 恢复歌词相关窗口
     restoreLyricWindows();

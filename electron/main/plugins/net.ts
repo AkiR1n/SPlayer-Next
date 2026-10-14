@@ -57,7 +57,17 @@ export const fetchMarket = async (): Promise<MarketPlugin[]> => {
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const data = JSON.parse(await resp.text()) as { plugins?: MarketPlugin[] };
   return Array.isArray(data.plugins)
-    ? data.plugins.filter((item) => item?.id && item?.updateUrl)
+    ? data.plugins
+        .filter((item) => item?.id && item?.updateUrl)
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          author: item.author,
+          version: item.version,
+          description: item.description,
+          homepage: item.homepage,
+          updateUrl: item.updateUrl,
+        }))
     : [];
 };
 
@@ -105,6 +115,8 @@ export const hostRequest = async (
     const resp = await net.fetch(url, {
       method: opts.method ?? "GET",
       headers: opts.headers ?? {},
+      // 只使用插件显式提供的 Cookie，避免被应用会话覆盖。
+      credentials: "omit",
       body,
       signal: ctrl.signal,
       // 让 Electron 遵循系统代理

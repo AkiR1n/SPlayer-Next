@@ -8,7 +8,7 @@
  */
 
 import { ipcMain, dialog } from "electron";
-import type { PluginInfo } from "@shared/types/plugin";
+import type { PluginInfo, PluginGrant } from "@shared/types/plugin";
 import { pluginRegistry } from "@main/plugins/registry";
 import { resolveUrl, invokeMenu } from "@main/plugins/router";
 import { matchLyric, matchCover } from "@main/plugins/metadata";
@@ -17,6 +17,12 @@ import { broadcast } from "@main/utils/broadcast";
 import { coreLog } from "@main/utils/logger";
 
 export const registerPluginIpc = (): void => {
+  ipcMain.handle(
+    "plugin:setPermission",
+    async (_event, id: string, grant: PluginGrant, enabled: boolean) => {
+      await pluginRegistry.setPermission(id, grant, enabled);
+    },
+  );
   ipcMain.handle("plugin:list", (): PluginInfo[] => pluginRegistry.listInfo());
 
   ipcMain.handle("plugin:install", async (_evt, filePath: string) => {

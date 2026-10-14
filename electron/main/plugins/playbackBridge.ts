@@ -1,5 +1,5 @@
 /**
- * 控制类插件的播放事件桥
+ * 订阅播放事件的插件的播放事件桥
  */
 
 import type { Track, PlayerState } from "@shared/types/player";
@@ -89,7 +89,7 @@ const primeState = (): void => {
   currentIndex = lyricLines.length > 0 ? findIndex(snap.position + lyricOffsetMs) : -1;
 };
 
-/** 给单个刚就绪的控制类插件定向补发当前播放快照 */
+/** 给单个刚就绪的订阅播放事件的插件定向补发当前播放快照 */
 const primePlugin = (id: string): void => {
   const snap = nowPlaying.snapshot();
   const send = <K extends PlaybackEventKind>(event: K, data: PlaybackEventData[K]): void =>
@@ -129,16 +129,16 @@ const detach = (): void => {
   lastPluginState = "paused";
 };
 
-/** 启动：按当前是否有控制类插件惰性挂载，并随其增减切换；每个插件就绪时定向补发快照 */
+/** 启动：按当前是否有订阅播放事件的插件惰性挂载，并随其增减切换；每个插件就绪时定向补发快照 */
 export const init = (): void => {
-  if (pluginRegistry.hasEnabledControlPlugin()) attach();
-  const onControlActivity = (active: boolean): void => (active ? attach() : detach());
-  const onControlReady = (id: string): void => primePlugin(id);
-  pluginRegistry.on("controlActivityChange", onControlActivity);
-  pluginRegistry.on("controlPluginReady", onControlReady);
+  if (pluginRegistry.hasPlaybackSubscribers()) attach();
+  const onPlaybackActivity = (active: boolean): void => (active ? attach() : detach());
+  const onSubscriberReady = (id: string): void => primePlugin(id);
+  pluginRegistry.on("playbackActivityChange", onPlaybackActivity);
+  pluginRegistry.on("playbackSubscriberReady", onSubscriberReady);
   offRegistryEvents = () => {
-    pluginRegistry.off("controlActivityChange", onControlActivity);
-    pluginRegistry.off("controlPluginReady", onControlReady);
+    pluginRegistry.off("playbackActivityChange", onPlaybackActivity);
+    pluginRegistry.off("playbackSubscriberReady", onSubscriberReady);
   };
 };
 

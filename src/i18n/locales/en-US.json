@@ -2017,8 +2017,6 @@
         "disabled": "Disabled",
         "unloaded": "Unloaded"
       },
-      "sectionSource": "Source Plugins",
-      "sectionControl": "Control Plugins",
       "detail": {
         "title": "Plugin Details",
         "intro": "About",
@@ -2027,7 +2025,6 @@
         "info": "Info",
         "noDescription": "No description",
         "grantNone": "This plugin declares no permissions",
-        "autoGranted": "Auto-granted",
         "sources": "Sources",
         "events": "Events",
         "controls": "Playback control",
@@ -2042,9 +2039,26 @@
         "homepage": "Homepage"
       },
       "grant": {
-        "network": { "label": "Network", "desc": "Can make network requests" },
-        "control": { "label": "Control", "desc": "Can control the player" },
-        "ui": { "label": "Interface", "desc": "Can extend or modify the app interface" }
+        "network": {
+          "label": "Network",
+          "desc": "Can make network requests"
+        },
+        "control": {
+          "label": "Control",
+          "desc": "Can control the player"
+        },
+        "ui": {
+          "label": "Interface",
+          "desc": "Can add song menus and send system notifications"
+        },
+        "library": {
+          "label": "Library",
+          "desc": "Can search the local library and read track metadata"
+        },
+        "api": {
+          "label": "Platform APIs",
+          "desc": "Call music platform APIs using the current session"
+        }
       }
     },
     "pluginManager": {

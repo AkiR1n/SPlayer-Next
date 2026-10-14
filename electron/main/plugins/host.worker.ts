@@ -26,6 +26,7 @@ import type {
   SandboxIn,
   SandboxOut,
   SourceCapability,
+  PluginPlayerApi,
 } from "@shared/types/plugin";
 import { installLxShim } from "./lx-shim";
 
@@ -112,7 +113,6 @@ interface PluginContextRecord {
   /** 注入沙箱的定时器句柄，卸载时统一清除，避免泄露/继续运行 */
   timers: Set<NodeJS.Timeout>;
   immediates: Set<NodeJS.Immediate>;
-  callSeq: number;
   disposed: boolean;
 }
 
@@ -124,7 +124,10 @@ const hostCall = (
   method: HostCallMethod,
   args: unknown[],
 ): Promise<unknown> => {
-  const callId = `c${++record.callSeq}`;
+  if (record.disposed) return Promise.reject(new Error("Plugin unloaded"));
+  if (record.hostCallWaiters.size >= 64)
+    return Promise.reject(new Error("Too many pending host calls"));
+  const callId = crypto.randomUUID();
   return new Promise<unknown>((resolve, reject) => {
     record.hostCallWaiters.set(callId, { resolve, reject });
     try {
@@ -281,7 +284,35 @@ const buildSplayer = (record: PluginContextRecord, spec: LoadSpec): HostApi => (
     setVolume: (volume: number) =>
       void hostCall(record, "player.setVolume", [volume]).catch(() => {}),
     getPosition: () => hostCall(record, "player.getPosition", []) as Promise<number>,
+    stop: () => hostCall(record, "player.stop", []) as Promise<void>,
+    playTrack: (track) =>
+      hostCall(record, "player.playTrack", [track]) as ReturnType<PluginPlayerApi["playTrack"]>,
+    addToQueue: (tracks, position = "next") =>
+      hostCall(record, "player.addToQueue", [tracks, position]) as ReturnType<
+        PluginPlayerApi["addToQueue"]
+      >,
+    setPlayMode: (mode) => hostCall(record, "player.setPlayMode", [mode]) as Promise<void>,
+    getStatus: () =>
+      hostCall(record, "player.getStatus", []) as ReturnType<PluginPlayerApi["getStatus"]>,
+    getNowPlaying: () =>
+      hostCall(record, "player.getNowPlaying", []) as ReturnType<PluginPlayerApi["getNowPlaying"]>,
   },
+
+  music: {
+    searchOnline: (options) =>
+      hostCall(record, "music.searchOnline", [options]) as ReturnType<
+        HostApi["music"]["searchOnline"]
+      >,
+    searchLibrary: (query, limit) =>
+      hostCall(record, "music.searchLibrary", [query, limit]) as ReturnType<
+        HostApi["music"]["searchLibrary"]
+      >,
+  },
+  api: {
+    call: (platform, name, params) =>
+      hostCall(record, "api.call", [platform, name, params]) as ReturnType<HostApi["api"]["call"]>,
+  },
+  notify: (message) => hostCall(record, "notify", [message]) as Promise<void>,
 
   onSettingChange: (key: string, handler: (value: unknown) => void) => {
     const list = record.settingChangeHandlers.get(key) ?? [];
@@ -405,7 +436,6 @@ const loadPluginIntoContext = (spec: LoadSpec): void => {
     userSettingsCache: spec.userSettings ?? {},
     timers: new Set(),
     immediates: new Set(),
-    callSeq: 0,
     disposed: false,
   };
   plugins.set(spec.pluginId, record);

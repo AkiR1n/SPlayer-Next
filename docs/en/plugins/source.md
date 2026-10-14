@@ -1,289 +1,314 @@
-# Source Plugins
+# Source resolution
 
-A source plugin (`@type source`) provides playable URLs when the built-in provider cannot return one. It can also supply fallback lyrics, covers, and comments for online, local, and streaming tracks.
+Register source capabilities to provide playback URLs, lyrics, covers, or comments. HTTP requests, storage, and utilities are covered in [Common APIs](/en/plugins/api).
 
-Read [Plugin Overview](/en/plugins/) first for common APIs such as `request`, `storage`, `log`, and `utils`.
+## Request flow
 
-## How resolution works
+The host selects a plugin for the track source and calls its registered action handler. Playback URL resolution follows the user's plugin priority; the first valid result is used.
 
-1. The player maps an online track to a source key and selects enabled, ready plugins registered for that key.
-2. It calls `musicUrl` with the platform track ID and requested quality.
-3. The plugin calls its service and returns `{ url }`.
-4. The first non-empty URL is played. An exception or empty URL moves to the next plugin.
+Playback URLs use fixed source keys. Metadata capabilities can also use custom keys.
 
-::: warning Source keys must match platforms
-Playback currently recognizes the LX community keys `wy`, `tx`, and `kg`. Other keys can be registered and used for metadata fallback, but they are not selected for playback URL resolution.
-:::
+| Track platform identifier | Source key |
+| ------------------------- | ---------- |
+| `netease`                 | `wy`       |
+| `qqmusic`                 | `tx`       |
+| `kugou`                   | `kg`       |
 
 ## Quick start
 
 ```js
 /**
- * @name        Example
- * @id          you.example
- * @version     1.0.0
- * @description Example source
- * @author      you
- * @type        source
- * @apiLevel    1
+ * @name Example source
+ * @id you.example-source
+ * @version 1.0.0
+ * @apiLevel 1
  */
-
 splayer.register({
   sources: {
-    wy: {
-      name: "Example source",
-      actions: ["musicUrl"],
-      qualities: ["lq", "hq", "lossless"],
-    },
+    wy: { name: "Example source", actions: ["musicUrl"], qualities: ["hq"] },
   },
 });
-
 splayer.on("musicUrl", async ({ musicInfo, quality }) => {
   const response = await splayer.request(
-    `https://api.example.com/url?id=${musicInfo.songmid}&q=${quality}`,
+    "https://api.example.com/url?id=" + encodeURIComponent(musicInfo.songmid) + "&q=" + quality,
     { responseType: "json" },
   );
-  if (!response.body?.url) throw new Error("no url");
-  return { url: response.body.url, quality, expire: response.body.expire };
+  if (!response.body?.url) throw new Error("No playback URL");
+  return { url: response.body.url, quality };
 });
 ```
 
-Save as `example.js` and import it under **Settings → Plugin Management → Local import**. `@type source` may be omitted. URL, lyric, and cover features require API level 1; comments require level 3.
+Replace the example endpoint with your service. Save as a `.js` file and import it through Plugin Management.
 
-## `splayer.register(capabilities)`
+## Source registration {#register}
 
-Call registration synchronously while the script loads:
+Declares source capabilities during initialization.
+
+**Call:** `splayer.register(args)`
+
+**API version:** 1
+
+**Permission:** None
+
+**Parameter:** `args.sources: Record<string, SourceCapability>`. Keys identify sources; each value contains:
+
+| Field       | Type                    | Description                                         |
+| ----------- | ----------------------- | --------------------------------------------------- |
+| `name`      | `string`                | Required display name                               |
+| `actions`   | `PluginAction[]`        | Required; choose from [supported actions](#actions) |
+| `qualities` | [Quality[]](#qualities) | Optional supported qualities                        |
+
+**Returns:** `void`. Multiple sources share each action handler; dispatch using the request's `source`.
+
+### Supported actions {#actions}
+
+Register a matching handler with `splayer.on` for each action.
+
+| Action                          | Purpose           | Minimum level |
+| ------------------------------- | ----------------- | ------------- |
+| [`musicUrl`](#musicurl)         | Playback URL      | 1             |
+| [`musicSearch`](#musicsearch)   | Search candidates | 1             |
+| [`musicLyric`](#musiclyric)     | Fetch lyrics      | 1             |
+| [`musicPic`](#musicpic)         | Fetch covers      | 1             |
+| [`musicComment`](#musiccomment) | Fetch comments    | 3             |
+
+### Quality levels {#qualities}
+
+| `Quality`  | Meaning                                                               |
+| ---------- | --------------------------------------------------------------------- |
+| `hi-res`   | High-resolution lossless, sample rate ≥ 96 kHz and bit depth ≥ 24 bit |
+| `lossless` | Lossless                                                              |
+| `hq`       | Lossy, bitrate ≥ 320 kbps                                             |
+| `sq`       | Lossy, bitrate ≥ 192 kbps                                             |
+| `lq`       | Lossy, bitrate < 192 kbps                                             |
+
+## Source resolution {#resolution}
+
+Register handlers with `splayer.on(action, handler)`, which returns `void`. `action` is the action name; `handler: (req) => Promise<res>` receives a host request and returns a result. Registering the same action again replaces its handler. Registration requires no permission; methods called inside a handler retain their own requirements.
+
+`musicUrl` has a 20-second timeout; other source actions have 15 seconds. Throw when no result is available; the host can try another plugin.
+
+### Playback URL {#musicurl}
+
+Provides a playable URL.
+
+**Call:** `splayer.on("musicUrl", handler)`
+
+**API version:** 1
+
+**Permission:** None
+
+**Parameters:**
+
+- `source` (`string`): Requested source key
+- `quality` (`Quality`): Requested quality
+- `musicInfo` (`object`): Track information below
+
+| `musicInfo` field           | Type             | Description                                  |
+| --------------------------- | ---------------- | -------------------------------------------- |
+| `songmid` / `id` / `songId` | `string`         | Aliases for the platform track ID            |
+| `name`                      | `string`         | Title                                        |
+| `singer`                    | `string`         | Artist names joined with `/`                 |
+| `source`                    | `string`         | Source key                                   |
+| `interval`                  | `string \| null` | Duration as `mm:ss`, or `null`               |
+| `img`                       | `string \| null` | Cover URL                                    |
+| `hash`                      | `string`         | Optional track hash for sources that use one |
+| `albumId` / `albumName`     | `string`         | Album ID / name, empty when unknown          |
+| `meta`                      | `object`         | Additional album, cover, and other metadata  |
+
+| Result field | Type      | Description                                       |
+| ------------ | --------- | ------------------------------------------------- |
+| `url`        | `string`  | Required non-empty playback URL                   |
+| `quality`    | `Quality` | Optional actual quality                           |
+| `expire`     | `number`  | Optional URL expiration timestamp in milliseconds |
+
+See [Quick start](#quick-start) for a call example. If the requested quality is unavailable, return a lower quality and identify it in `quality`.
+
+## Metadata extensions {#metadata-fallback}
+
+### Matching flow {#matching}
+
+Register `musicSearch` and any of `musicLyric`, `musicPic`, or `musicComment`. The host matches candidates by title, artist, album, and duration, then passes the selected candidate as `musicInfo`. A matching platform can use its track ID directly and skip search.
+
+Lyrics fall back to plugins after built-in providers or the streaming server. Cover fallback runs only when a track has no cover. Comment sources appear in the comments view and require both `musicSearch` and `musicComment`.
+
+::: tip Candidate duration
+Provide `durationMs` when available. Candidates differing by more than 20 seconds are excluded when both durations are available.
+:::
 
 ```js
 splayer.register({
   sources: {
-    wy: {
-      name: "Example source",
-      actions: ["musicUrl"],
-      qualities: ["lq", "sq", "hq", "lossless", "hi-res"],
-    },
+    custom: { name: "Example", actions: ["musicSearch", "musicLyric", "musicPic", "musicComment"] },
   },
 });
 ```
 
-| Source field | Type        | Required | Description                                                         |
-| ------------ | ----------- | -------- | ------------------------------------------------------------------- |
-| `name`       | `string`    | Yes      | Display name                                                        |
-| `actions`    | `Action[]`  | Yes      | `musicUrl`, `musicSearch`, `musicLyric`, `musicPic`, `musicComment` |
-| `qualities`  | `Quality[]` |          | Supported qualities, for display only                               |
+### Search candidates {#musicsearch}
 
-| Quality    | Meaning                                    |
-| ---------- | ------------------------------------------ |
-| `hi-res`   | Sample rate ≥96 kHz and bit depth ≥24 bit  |
-| `lossless` | FLAC, APE, WAV, or another lossless format |
-| `hq`       | Lossy ≥320 kbps                            |
-| `sq`       | Lossy ≥192 kbps                            |
-| `lq`       | Lossy below 192 kbps                       |
+Searches metadata candidates for host matching.
 
-## `splayer.on("musicUrl", handler)`
+**Call:** `splayer.on("musicSearch", handler)`
 
-Only one handler exists per action; a later registration replaces the previous one.
+**API version:** 1
 
-```js
-{
-  source: "wy",
-  quality: "hq",
-  musicInfo: { /* ... */ },
-}
-```
+**Permission:** None
 
-`musicInfo.id`, `songmid`, and `songId` are aliases for the same platform track ID.
+**Parameters:**
 
-| Field      | Type             | Description                                       |
-| ---------- | ---------------- | ------------------------------------------------- |
-| `id`       | `string`         | Platform track ID                                 |
-| `songmid`  | `string`         | Alias of `id`                                     |
-| `songId`   | `string`         | Alias of `id`                                     |
-| `name`     | `string`         | Track title                                       |
-| `singer`   | `string`         | Artists joined with `/`                           |
-| `source`   | `string`         | Source key                                        |
-| `interval` | `string \| null` | Duration as `mm:ss`, or `null`                    |
-| `meta`     | `object`         | Additional `albumName`, `albumId`, `picUrl`, etc. |
+- `source` (`string`): Source key
+- `keyword` (`string`): Search text, usually title and artist
+- `page` (`number`): Optional page number
+- `limit` (`number`): Optional requested candidate count
 
-Return:
+**Result:** `{ list: Candidate[] }`, using an empty list when nothing matches.
 
-| Field     | Type      | Required | Description                              |
-| --------- | --------- | -------- | ---------------------------------------- |
-| `url`     | `string`  | Yes      | Non-empty playback URL                   |
-| `quality` | `Quality` |          | Actual quality if downgraded             |
-| `expire`  | `number`  |          | URL expiration timestamp in milliseconds |
-
-Throw an error when no result exists. The player tries the next plugin. Handlers normally time out after 20 seconds and are cancelled after a track change.
-
-## Supporting multiple platforms
-
-Register multiple source keys, then dispatch the single `musicUrl` handler by `req.source`:
+| `Candidate` field | Type     | Description                                                         |
+| ----------------- | -------- | ------------------------------------------------------------------- |
+| `id`              | `string` | Required source track ID                                            |
+| `name`            | `string` | Required title                                                      |
+| `singer`          | `string` | Optional artist                                                     |
+| `album`           | `string` | Optional album                                                      |
+| `durationMs`      | `number` | Optional duration in milliseconds, used to reject incorrect matches |
+| Other fields      | Any      | Passed unchanged to subsequent handlers                             |
 
 ```js
-splayer.register({
-  sources: {
-    wy: { name: "WY", actions: ["musicUrl"], qualities: ["hq", "lossless"] },
-    tx: { name: "TX", actions: ["musicUrl"], qualities: ["hq"] },
-  },
-});
-
-splayer.on("musicUrl", async (request) => {
-  const id = request.musicInfo.songmid;
-  const url =
-    request.source === "wy"
-      ? await resolveWy(id, request.quality)
-      : await resolveTx(id, request.quality);
-  if (!url) throw new Error("no url");
-  return { url, quality: request.quality };
-});
-```
-
-## Metadata fallback {#metadata-fallback}
-
-The host orchestrates matching while the plugin supplies primitives:
-
-- `musicSearch` finds candidates.
-- `musicLyric`, `musicPic`, and `musicComment` receive the selected candidate.
-- Metadata source keys are not limited to `wy`, `tx`, and `kg`.
-- Candidate scoring uses name, artist, album, and duration. If both durations are present and differ by more than 20 seconds, the candidate is rejected.
-
-```js
-splayer.register({
-  sources: {
-    kw: {
-      name: "KW",
-      actions: ["musicSearch", "musicLyric", "musicPic", "musicComment"],
-    },
-  },
-});
-```
-
-### `musicSearch`
-
-Request: `{ source, keyword, page?, limit? }`. Return `{ list: Candidate[] }`.
-
-| Candidate field | Type     | Required | Description                                          |
-| --------------- | -------- | -------- | ---------------------------------------------------- |
-| `id`            | `string` | Yes      | ID used by later metadata handlers                   |
-| `name`          | `string` | Yes      | Track title                                          |
-| `singer`        | `string` |          | Artist                                               |
-| `album`         | `string` |          | Album                                                |
-| `durationMs`    | `number` |          | Duration; strongly recommended for accurate matching |
-
-All additional candidate fields are passed unchanged to subsequent handlers.
-
-### `musicLyric`
-
-Request: `{ source, musicInfo }`. Return:
-
-| Field     | Type     | Required | Description                    |
-| --------- | -------- | -------- | ------------------------------ |
-| `lyric`   | `string` | Yes      | Main LRC or line-timed lyrics  |
-| `tlyric`  | `string` |          | Translation                    |
-| `rlyric`  | `string` |          | Romanization                   |
-| `awlyric` | `string` |          | Word-timed YRC, QRC, LYS, etc. |
-
-Word-timed `awlyric` takes precedence. An empty `lyric` is treated as no result.
-
-### `musicPic`
-
-Request: `{ source, musicInfo }`. Return `{ url }` with a direct image URL. Use a large image because it supplies both the visible player cover and background.
-
-### `musicComment`
-
-Requires `@apiLevel 3`.
-
-```js
-{
-  source: "kw",
-  musicInfo: { /* matched candidate */ },
-  type: "hot", // or "new"
-  page: 1,
-  limit: 20,
-}
-```
-
-Return `{ list, total, page, limit }`. Each comment requires `id`, `userName`, and `text`; optional fields are `userId`, `avatar`, `time`, `location`, `likedCount`, and nested `reply` summaries.
-
-### Complete metadata example
-
-```js
-/**
- * @name     KW Metadata
- * @id       you.kw-metadata
- * @version  1.0.0
- * @type     source
- * @apiLevel 3
- */
-splayer.register({
-  sources: {
-    kw: { name: "KW", actions: ["musicSearch", "musicLyric", "musicPic", "musicComment"] },
-  },
-});
-
-splayer.on("musicSearch", async ({ keyword }) => {
-  const response = await splayer.request(
-    `https://api.example.com/search?k=${encodeURIComponent(keyword)}`,
-    { responseType: "json" },
-  );
+splayer.on("musicSearch", async ({ keyword, page = 1, limit = 20 }) => {
+  const query = new URLSearchParams({ keyword, page: String(page), limit: String(limit) });
+  const { body } = await splayer.request("https://api.example.com/search?" + query, {
+    responseType: "json",
+  });
   return {
-    list: (response.body?.songs ?? []).map((song) => ({
-      id: song.rid,
-      name: song.name,
+    list: body.songs.map((song) => ({
+      id: String(song.id),
+      name: song.title,
       singer: song.artist,
       album: song.album,
-      durationMs: song.duration * 1000,
+      durationMs: song.durationMs,
     })),
   };
 });
-
-splayer.on("musicLyric", async ({ musicInfo }) => {
-  const response = await splayer.request(`https://api.example.com/lyric?id=${musicInfo.id}`, {
-    responseType: "json",
-  });
-  return { lyric: response.body?.lrc ?? "", tlyric: response.body?.tlrc };
-});
-
-splayer.on("musicPic", async ({ musicInfo }) => {
-  const response = await splayer.request(`https://api.example.com/pic?id=${musicInfo.id}`, {
-    responseType: "json",
-  });
-  return { url: response.body?.cover ?? "" };
-});
 ```
 
-### Trigger order
+### Fetch lyrics {#musiclyric}
 
-- Lyrics fallback applies to online, local, and streaming tracks. Built-in providers or the streaming server are tried first; plugins follow in user priority order.
-- Cover fallback applies only when a track from any source has no cover at all.
-- Comment sources appear only when they declare both `musicSearch` and `musicComment`.
-- Source plugins receive network permission automatically.
+Returns lyrics for the matched candidate.
 
-## Priority and updates
+**Call:** `splayer.on("musicLyric", handler)`
 
-Multiple source plugins can be enabled for one platform. They are tried by the priority configured in Plugin Management. Declare `@updateUrl` for host-managed updates; LX scripts can use `updateAlert`. See [Plugin Updates](/en/plugins/update).
+**API version:** 1
 
-## LX compatibility
+**Permission:** None
 
-The automatically injected `lx` compatibility layer implements common `user_api` APIs, including `lx.request`, `lx.on("request")`, `lx.send("inited")`, and `lx.utils`. Most existing LX source scripts, including `gz_` packages, need no modification. New plugins should use `splayer.*` directly.
+**Parameters:**
 
-## Debugging
+- `source` (`string`): Source key.
+- `musicInfo` (`Candidate`): Matched candidate.
+
+| Result field | Type     | Description                                      |
+| ------------ | -------- | ------------------------------------------------ |
+| `lyric`      | `string` | Required main lyrics, LRC or line text           |
+| `tlyric`     | `string` | Optional translation                             |
+| `rlyric`     | `string` | Optional romanization                            |
+| `awlyric`    | `string` | Optional word-timed lyrics, format auto-detected |
+
+Word-timed `awlyric` takes precedence. The host tries other sources when no usable lyrics are returned.
 
 ```js
-await window.api.plugins.resolveUrl({
-  pluginId: "example-splayer",
-  source: "wy",
-  quality: "hq",
-  musicInfo: { songmid: "track-id", name: "Title", singer: "Artist" },
+splayer.on("musicLyric", async ({ musicInfo }) => {
+  const { body } = await splayer.request(
+    "https://api.example.com/lyric?id=" + encodeURIComponent(musicInfo.id),
+    { responseType: "json" },
+  );
+  return { lyric: body.lyric ?? "", tlyric: body.translation };
 });
-
-const track = {
-  id: "x",
-  source: "local",
-  title: "Title",
-  artists: [{ name: "Artist" }],
-  duration: 269000,
-};
-await window.api.plugins.matchLyric({ pluginId: "kw-metadata-splayer", source: "kw", track });
-await window.api.plugins.matchCover({ pluginId: "kw-metadata-splayer", source: "kw", track });
 ```
+
+### Fetch covers {#musicpic}
+
+Returns the matched candidate's cover.
+
+**Call:** `splayer.on("musicPic", handler)`
+
+**API version:** 1
+
+**Permission:** None
+
+**Parameters:**
+
+- `source` (`string`): Source key.
+- `musicInfo` (`Candidate`): Matched candidate.
+
+**Result:** `{ url: string }`, a direct remote image URL; an empty URL means no result.
+
+```js
+splayer.on("musicPic", async ({ musicInfo }) => {
+  const { body } = await splayer.request(
+    "https://api.example.com/cover?id=" + encodeURIComponent(musicInfo.id),
+    { responseType: "json" },
+  );
+  return { url: body.url ?? "" };
+});
+```
+
+### Fetch comments {#musiccomment}
+
+Returns a page of comments for the matched candidate.
+
+**Call:** `splayer.on("musicComment", handler)`
+
+**API version:** 3
+
+**Permission:** None
+
+**Parameters:**
+
+- `source` (`string`): Source key
+- `musicInfo` (`Candidate`): Matched candidate
+- `type` (`"hot" | "new"`): Popular or latest comments
+- `page` (`number`): Page number, starting at 1
+- `limit` (`number`): Page size
+
+**Result:** `{ list: Comment[]; total: number; page: number; limit: number }`, containing the current page, total count, page number, and page size.
+
+| `Comment` field     | Type        | Description                            |
+| ------------------- | ----------- | -------------------------------------- |
+| `id`                | `string`    | Required comment ID                    |
+| `userName`          | `string`    | Required user name                     |
+| `text`              | `string`    | Required content                       |
+| `userId` / `avatar` | `string`    | Optional user ID / avatar URL          |
+| `time`              | `number`    | Optional timestamp in milliseconds     |
+| `location`          | `string`    | Optional location                      |
+| `likedCount`        | `number`    | Optional like count                    |
+| `images`            | `string[]`  | Optional image URLs                    |
+| `reply`             | `Comment[]` | Optional reply summaries               |
+| `replyTotal`        | `number`    | Optional total reply count             |
+| `hasMoreReply`      | `boolean`   | Optional indication of further replies |
+
+```js
+splayer.on("musicComment", async ({ musicInfo, type, page, limit }) => {
+  const query = new URLSearchParams({
+    id: musicInfo.id,
+    type,
+    page: String(page),
+    limit: String(limit),
+  });
+  const { body } = await splayer.request("https://api.example.com/comments?" + query, {
+    responseType: "json",
+  });
+  return {
+    list: body.comments.map((comment) => ({
+      id: String(comment.id),
+      userName: comment.userName,
+      text: comment.text,
+    })),
+    total: body.total,
+    page,
+    limit,
+  };
+});
+```
+
+## Updates and compatibility
+
+See [Plugin Updates](/en/plugins/update) for releases and [LX Compatibility](/en/plugins/lx) for existing LX scripts.

@@ -21,8 +21,14 @@ import type {
   PluginSettingItem,
   PluginStatus,
   PluginUpdateInfo,
+  PluginGrant,
+  PluginPermissions,
 } from "@shared/types/plugin";
-import { PluginErrorCodes, RESTART_MAX_ATTEMPTS } from "@shared/defaults/plugin-api";
+import {
+  HOST_API_LEVEL,
+  PluginErrorCodes,
+  RESTART_MAX_ATTEMPTS,
+} from "@shared/defaults/plugin-api";
 import { store } from "@main/store";
 import { getLocale } from "@main/utils/i18n";
 import { coreLog } from "@main/utils/logger";
@@ -90,6 +96,7 @@ const isNewerVersion = (remote: string, current: string): boolean => {
 };
 
 interface PluginRuntime {
+  hostSession?: AbortController;
   manifest: PluginManifest;
   enabled: boolean;
   status: PluginStatus;
@@ -98,13 +105,13 @@ interface PluginRuntime {
   source: string;
   /** 有新版本提示：splayer 由宿主比对 @version 得出，lx 由脚本 updateAlert 自报；null 表示无 */
   updateInfo: PluginUpdateInfo | null;
-  /** 控制类：订阅的播放事件列表，音源类为 [] */
+  /** 订阅的播放事件列表 */
   events: PlaybackEventKind[];
-  /** 控制类：是否注册了反向控制能力 */
+  /** 插件能力：是否注册了反向控制能力 */
   controls: boolean;
-  /** 控制类：声明的用户配置项 */
+  /** 插件能力：声明的用户配置项 */
   settings: PluginSettingItem[];
-  /** UI 类：已授予 ui 权限后接受的菜单项，否则为 [] */
+  /** 插件声明的菜单项，展示和执行时检查 ui 权限 */
   menus: PluginMenuItem[];
   /** router 注册的 pending 调用 */
   pending: Map<
@@ -153,7 +160,8 @@ class PluginRegistry extends EventEmitter {
     const enabledMap = store.get("plugins.enabled") as Record<string, boolean>;
 
     // 首先加载 stored manifest
-    for (const [id, manifest] of Object.entries(stored.plugins)) {
+    for (const [id, storedManifest] of Object.entries(stored.plugins)) {
+      let manifest = storedManifest;
       const scriptPath = path.join(scriptsDir(), manifest.fileName);
       let source = "";
       try {
@@ -161,7 +169,12 @@ class PluginRegistry extends EventEmitter {
         // 重新解压（防止脚本外部被替换为 gz_）
         const fresh = loadScript(source, false, manifest.fileName);
         source = fresh.source;
-        manifest.grant = fresh.manifest.grant;
+        manifest = {
+          ...fresh.manifest,
+          id,
+          installedAt: storedManifest.installedAt,
+          updatedAt: storedManifest.updatedAt,
+        };
       } catch (err) {
         coreLog.warn(`[plugin] failed to read ${manifest.fileName}:`, err);
         continue;
@@ -192,6 +205,7 @@ class PluginRegistry extends EventEmitter {
   listInfo(): PluginInfo[] {
     return Array.from(this.runtimes.values()).map((rt) => ({
       manifest: rt.manifest,
+      permissions: this.permissionsOf(rt.manifest),
       enabled: rt.enabled,
       status: rt.status,
       updateInfo: rt.updateInfo,
@@ -203,6 +217,40 @@ class PluginRegistry extends EventEmitter {
 
   getRuntime(id: string): PluginRuntime | undefined {
     return this.runtimes.get(id);
+  }
+
+  /** 获取用户对当前声明的授权，避免带点的插件 ID 被解释为配置路径 */
+  private permissionsOf(manifest: PluginManifest): PluginPermissions {
+    const saved = store.get("plugins.permissions")?.[manifest.id];
+    return Object.fromEntries(manifest.grant.map((grant) => [grant, saved?.[grant] ?? true]));
+  }
+
+  /** 获取实际授权，供消息调用与菜单路由统一检查 */
+  getGrantedPermissions(id: string): PluginGrant[] {
+    const rt = this.runtimes.get(id);
+    if (!rt) return [];
+    const permissions = this.permissionsOf(rt.manifest);
+    return rt.manifest.grant.filter((grant) => permissions[grant]);
+  }
+
+  /**
+   * 保存用户权限选择并广播，后续调用读取实时授权
+   * @param id - 插件 ID
+   * @param grant - 已声明的权限
+   * @param enabled - 是否允许
+   */
+  async setPermission(id: string, grant: PluginGrant, enabled: boolean): Promise<void> {
+    const rt = this.runtimes.get(id);
+    if (!rt || !rt.manifest.grant.includes(grant) || typeof enabled !== "boolean") {
+      throw new Error("Invalid plugin permission");
+    }
+    if (this.permissionsOf(rt.manifest)[grant] === enabled) return;
+    const all = store.get("plugins.permissions");
+    store.set("plugins.permissions", {
+      ...all,
+      [id]: { ...all?.[id], [grant]: enabled },
+    });
+    this.setStatus(rt, rt.status);
   }
 
   /** 按动作选一个已就绪的插件（优先级 → 首个 ready） */
@@ -270,7 +318,7 @@ class PluginRegistry extends EventEmitter {
     };
     this.runtimes.set(manifest.id, rt);
     await this.start(rt).catch(() => {});
-    return { manifest, enabled: rt.enabled, status: rt.status, updateInfo: rt.updateInfo };
+    return this.infoOf(rt);
   }
 
   /** 取插件当前的更新地址（检查到新版后由 updateInfo 持有） */
@@ -281,6 +329,7 @@ class PluginRegistry extends EventEmitter {
   /** 构造对外的插件信息 */
   private infoOf(rt: PluginRuntime): PluginInfo {
     return {
+      permissions: this.permissionsOf(rt.manifest),
       manifest: rt.manifest,
       enabled: rt.enabled,
       status: rt.status,
@@ -304,9 +353,8 @@ class PluginRegistry extends EventEmitter {
 
     const source = await fetchScript(url);
     const { manifest: remote } = loadScript(source, false);
-    // 身份/类型必须一致才算同一插件的新版，防 updateUrl 指向了别的脚本
-    const samePlugin =
-      remote.id === id && (remote.type ?? "source") === (rt.manifest.type ?? "source");
+    // 按身份识别更新，防止 updateUrl 指向其他插件
+    const samePlugin = remote.id === id;
 
     if (!samePlugin || !isNewerVersion(remote.version, rt.manifest.version)) {
       // 远端不比本地新：清掉可能残留的旧提示
@@ -345,14 +393,9 @@ class PluginRegistry extends EventEmitter {
       throw Object.assign(new Error("plugin not found"), { code: PluginErrorCodes.NOT_FOUND });
     }
     const { source, manifest } = loadScript(rawSource, false);
-    // 不变量守卫：名称（含平台）或类型变化 = 非同一插件，拒绝原地更新
+    // 身份变化时拒绝原地更新
     if (manifest.id !== id) {
       throw Object.assign(new Error("plugin name changed, please reinstall manually"), {
-        code: PluginErrorCodes.INVALID_MANIFEST,
-      });
-    }
-    if ((manifest.type ?? "source") !== (rt.manifest.type ?? "source")) {
-      throw Object.assign(new Error("plugin type changed, please reinstall manually"), {
         code: PluginErrorCodes.INVALID_MANIFEST,
       });
     }
@@ -382,6 +425,7 @@ class PluginRegistry extends EventEmitter {
 
     return {
       manifest: rt.manifest,
+      permissions: this.permissionsOf(rt.manifest),
       enabled: rt.enabled,
       status: rt.status,
       updateInfo: rt.updateInfo,
@@ -406,6 +450,9 @@ class PluginRegistry extends EventEmitter {
       /* ignore */
     }
     pluginStorageDrop(id);
+    const permissions = { ...store.get("plugins.permissions") };
+    delete permissions[id];
+    store.set("plugins.permissions", permissions);
 
     const enabledMap = { ...(store.get("plugins.enabled") as Record<string, boolean>) };
     delete enabledMap[id];
@@ -417,7 +464,7 @@ class PluginRegistry extends EventEmitter {
     if (!rt) return;
     // 在翻转 enabled 标志前取样：禁用路径里 setStatus 观测不到这次"启用→禁用"的翻转
     // （disabled/unloaded 状态本就非 ready，谓词两侧均为 false），需在此处补发
-    const before = this.hasEnabledControlPlugin();
+    const before = this.hasPlaybackSubscribers();
     rt.enabled = enabled;
     const enabledMap = {
       ...(store.get("plugins.enabled") as Record<string, boolean>),
@@ -432,7 +479,7 @@ class PluginRegistry extends EventEmitter {
     } else {
       await this.stop(rt);
       this.setStatus(rt, { state: "disabled" });
-      this.notifyControlActivity(before);
+      this.notifyPlaybackActivity(before);
     }
   }
 
@@ -441,6 +488,9 @@ class PluginRegistry extends EventEmitter {
     const id = rt.manifest.id;
     if (pluginHost.isReady(id) || rt.loading) return; // 已就绪或正在加载
     rt.loading = true;
+    rt.hostSession?.abort();
+    const hostSession = new AbortController();
+    rt.hostSession = hostSession;
     this.setStatus(rt, { state: "loading" });
 
     const userSettings =
@@ -448,7 +498,7 @@ class PluginRegistry extends EventEmitter {
 
     const spec: PluginLoadSpec = {
       pluginId: id,
-      apiLevel: rt.manifest.apiLevel,
+      apiLevel: HOST_API_LEVEL,
       locale: getLocale(),
       appVersion: app.getVersion(),
       userSettings,
@@ -465,8 +515,8 @@ class PluginRegistry extends EventEmitter {
     const callbacks: PluginHostCallbacks = {
       onReady: (sources) => {
         this.hostRestartAttempts = 0; // host 成功带起插件 → 重置 host 重启计数
-        // 控制类同步 register 时 registered 先于 ready 到达，ready 必须保留已登记的
-        // events/controls/settings/menus，否则会覆盖掉控制信息、导致设置表单不渲染
+        // 同步 register 时 registered 先于 ready 到达，ready 必须保留已登记的
+        // events/controls/settings/menus，否则会覆盖掉注册信息、导致设置表单不渲染
         this.setStatus(rt, {
           state: "ready",
           sources,
@@ -475,7 +525,7 @@ class PluginRegistry extends EventEmitter {
           settings: rt.settings,
           menus: rt.menus,
         });
-        this.maybePrimeControl(rt);
+        this.primePlaybackSubscriber(rt);
       },
       onResult: (requestId, ok, data, error) => {
         const p = rt.pending.get(requestId);
@@ -491,7 +541,15 @@ class PluginRegistry extends EventEmitter {
         }
       },
       onHostCall: (callId, method, args) => {
-        void dispatchHostCall(id, rt.manifest.grant, callId, method, args);
+        void dispatchHostCall(
+          id,
+          () => this.getGrantedPermissions(id),
+          callId,
+          method,
+          args,
+          () => !hostSession.signal.aborted,
+          rt.manifest.name,
+        );
       },
       onLog: (level, args) => {
         coreLog[level](`[plugin:${id}]`, ...args);
@@ -515,28 +573,31 @@ class PluginRegistry extends EventEmitter {
           });
         }
       },
-      onRegistered: ({ events, controls, settings, menus: declaredMenus }) => {
-        const menus = rt.manifest.grant.includes("ui") ? declaredMenus : [];
-        if (declaredMenus.length && !menus.length) {
-          coreLog.warn(`[plugin:${id}] 声明了菜单但缺少 "ui" 权限，已忽略`);
-        }
+      onRegistered: ({ events, controls, settings, menus }) => {
+        const before = this.hasPlaybackSubscribers();
         rt.events = events;
         rt.controls = controls;
         rt.settings = settings;
         rt.menus = menus;
         if (rt.status.state === "ready") {
-          this.setStatus(rt, { ...rt.status, events, controls, settings, menus });
+          this.setStatus(rt, { ...rt.status, events, controls, settings, menus }, before);
         } else {
-          this.setStatus(rt, { state: "ready", sources: {}, events, controls, settings, menus });
+          this.setStatus(
+            rt,
+            { state: "ready", sources: {}, events, controls, settings, menus },
+            before,
+          );
         }
-        this.maybePrimeControl(rt);
+        this.primePlaybackSubscriber(rt);
       },
       onFatal: (error) => {
+        hostSession.abort();
         coreLog.error(`[plugin:${id}] fatal ${error.code}: ${error.message}`);
         this.setStatus(rt, { state: "error", error });
         this.rejectAllPending(rt, error.message, error.code);
       },
       onHostLost: () => {
+        hostSession.abort();
         // host 整体丢失：失败在途调用，由 handleHostLost 统一安排整体重启
         this.rejectAllPending(rt, "plugin host lost", PluginErrorCodes.WORKER_CRASHED);
       },
@@ -587,6 +648,7 @@ class PluginRegistry extends EventEmitter {
   }
 
   private async stop(rt: PluginRuntime): Promise<void> {
+    rt.hostSession?.abort();
     rt.loading = false;
     // 软卸载：dispose 该插件的 vm 上下文，host 进程与其它插件不受扰
     pluginHost.unloadPlugin(rt.manifest.id);
@@ -603,10 +665,14 @@ class PluginRegistry extends EventEmitter {
     rt.pending.clear();
   }
 
-  private setStatus(rt: PluginRuntime, status: PluginStatus): void {
-    const before = this.hasEnabledControlPlugin();
+  private setStatus(
+    rt: PluginRuntime,
+    status: PluginStatus,
+    hadSubscribers = this.hasPlaybackSubscribers(),
+  ): void {
     rt.status = status;
     this.emit("status", {
+      permissions: this.permissionsOf(rt.manifest),
       manifest: rt.manifest,
       enabled: rt.enabled,
       status,
@@ -615,39 +681,35 @@ class PluginRegistry extends EventEmitter {
         (store.get(`plugins.perPlugin.${rt.manifest.id}` as never) as Record<string, unknown>) ??
         {},
     } satisfies PluginInfo);
-    this.notifyControlActivity(before);
+    this.notifyPlaybackActivity(hadSubscribers);
   }
 
   /**
-   * 控制类插件就绪后请求 bridge 定向补发快照
+   * 有播放事件订阅的插件就绪后，定向补发快照
    * @param rt - 插件运行时
    */
-  private maybePrimeControl(rt: PluginRuntime): void {
-    if (
-      rt.manifest.type === "control" &&
-      rt.status.state === "ready" &&
-      pluginHost.isReady(rt.manifest.id)
-    ) {
-      this.emit("controlPluginReady", rt.manifest.id);
+  private primePlaybackSubscriber(rt: PluginRuntime): void {
+    if (rt.events.length > 0 && rt.status.state === "ready" && pluginHost.isReady(rt.manifest.id)) {
+      this.emit("playbackSubscriberReady", rt.manifest.id);
     }
   }
 
-  /** 控制类插件的"有/无"状态翻转时通知（驱动 bridge 惰性挂载/卸载） */
-  private notifyControlActivity(before: boolean): void {
-    const after = this.hasEnabledControlPlugin();
-    if (before !== after) this.emit("controlActivityChange", after);
+  /** 订阅者的有无状态变化时通知事件桥挂载或卸载 */
+  private notifyPlaybackActivity(before: boolean): void {
+    const after = this.hasPlaybackSubscribers();
+    if (before !== after) this.emit("playbackActivityChange", after);
   }
 
-  /** 是否存在已启用且 ready 的控制类插件 */
-  hasEnabledControlPlugin(): boolean {
+  /** 是否存在已启用且就绪的播放事件订阅者 */
+  hasPlaybackSubscribers(): boolean {
     for (const rt of this.runtimes.values()) {
-      if (rt.enabled && rt.manifest.type === "control" && rt.status.state === "ready") return true;
+      if (rt.enabled && rt.events.length > 0 && rt.status.state === "ready") return true;
     }
     return false;
   }
 
   /**
-   * 扇出高层播放事件给订阅了该事件的控制类插件
+   * 扇出高层播放事件给订阅了该事件的插件
    * @param event - 播放事件类型
    * @param data - 事件载荷
    */
@@ -655,7 +717,7 @@ class PluginRegistry extends EventEmitter {
     for (const rt of this.runtimes.values()) {
       if (
         rt.enabled &&
-        rt.manifest.type === "control" &&
+        rt.events.length > 0 &&
         rt.status.state === "ready" &&
         rt.events.includes(event)
       ) {
@@ -665,7 +727,7 @@ class PluginRegistry extends EventEmitter {
   }
 
   /**
-   * 向单个控制类插件定向下发播放事件（用于新就绪插件的快照补发）
+   * 向单个插件定向下发播放事件（用于新就绪插件的快照补发）
    * @param id - 插件 ID
    * @param event - 播放事件类型
    * @param data - 事件载荷
@@ -675,7 +737,7 @@ class PluginRegistry extends EventEmitter {
     if (
       rt &&
       rt.enabled &&
-      rt.manifest.type === "control" &&
+      rt.events.length > 0 &&
       rt.status.state === "ready" &&
       rt.events.includes(event)
     ) {
