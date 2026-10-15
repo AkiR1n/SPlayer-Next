@@ -107,7 +107,11 @@ const submit = (raw: string): void => {
     query: {
       q: word,
       ...(route.name === "search"
-        ? { plugin: route.query.plugin, source: route.query.source }
+        ? {
+            platform: route.query.platform,
+            plugin: route.query.plugin,
+            source: route.query.source,
+          }
         : {}),
     },
   });

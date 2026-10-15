@@ -39,7 +39,7 @@ Declared permissions are enabled by default. Turn them off in the details dialog
 
 ## Search and playback
 
-Once an independent catalog plugin is enabled and ready, it appears in the source selector on the search page. Select it, enter a query, then play the results or add them to the queue.
+Select **Plugins** on the search page, choose a source from the dropdown on the right, and enter a query to search songs. Sources come from enabled, ready plugins. Tracks with playback support can be played or added to the queue.
 
 Plugin tracks are saved with the queue and remain playable after restarting the app. Disabling or uninstalling their plugin keeps the tracks in the queue, but playback reports that the source is unavailable. Enable or reinstall the same plugin to use them again.
 

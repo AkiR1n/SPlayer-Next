@@ -6,7 +6,7 @@
 
 ### 独立来源 {#independent}
 
-自定义 source key 同时声明 `musicSearch` 和 `musicUrl` 后，会作为独立来源显示在搜索页。用户选择来源后，搜索、播放、歌词和封面请求直接交给所属插件。来源仅在插件启用且就绪时显示。
+来源声明 `musicSearch` 后，会显示在搜索页的「插件」入口中。插件启用并就绪时，用户可从下拉框选择来源进行单曲搜索；其余内容分类显示空状态。声明 `musicUrl` 可播放该来源的歌曲，歌词和封面也由所属插件提供。
 
 宿主把搜索候选转换为 [Track](/types#track)，记录插件 ID、source key 和候选数据。播放队列保存这些信息，重启应用后仍向原插件获取播放地址。保持插件 ID、source key 和歌曲 ID 稳定，已入队的歌曲才能继续使用。
 
@@ -21,8 +21,6 @@
 | `netease`    | `wy`       |
 | `qqmusic`    | `tx`       |
 | `kugou`      | `kg`       |
-
-仅用于歌词、封面或评论匹配的自定义来源不会出现在搜索页，见[元数据扩展](#metadata-fallback)。
 
 ## 快速开始
 
@@ -83,7 +81,7 @@ splayer.on("musicPic", async ({ musicInfo }) => ({
 
 **参数：**
 
-- `args.sources`（`Record<string, SourceCapability>`）：音源能力，键为 source key。独立来源使用 `wy`、`tx`、`kg` 以外的 key
+- `args.sources`（`Record<string, SourceCapability>`）：音源能力，键为插件内的 source key
 - `args.sources[key].name`（`string`）：必填，音源展示名称
 - `args.sources[key].actions`（`PluginAction[]`）：必填，从[支持动作](#actions)中选择
 - `args.sources[key].qualities`（[Quality[]](#qualities)）：可选，支持的音质

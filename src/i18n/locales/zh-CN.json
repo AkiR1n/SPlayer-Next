@@ -393,6 +393,8 @@
   },
   "search": {
     "title": "搜索",
+    "plugins": "插件",
+    "pluginSource": "选择音源",
     "titleSuffix": "的搜索结果",
     "emptyKeyword": "请输入关键词开始搜索",
     "noResults": "没有找到匹配内容",

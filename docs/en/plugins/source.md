@@ -6,7 +6,7 @@ Provide an independent catalog with search and playback, or add playback URLs, l
 
 ### Independent sources {#independent}
 
-A custom source key declaring both `musicSearch` and `musicUrl` appears as an independent source on the search page. Search, playback, lyric, and cover requests go directly to the owning plugin. Sources appear only while the plugin is enabled and ready.
+A source declaring `musicSearch` appears under **Plugins** on the search page while its plugin is enabled and ready. Choose a source from the dropdown to search songs; other categories show the existing empty state. Declare `musicUrl` to play tracks from that source. Lyrics and covers also come from the owning plugin.
 
 The host converts search candidates into [Track](/en/types#track) objects, retaining the plugin ID, source key, and candidate data. The queue saves this information so playback can request a fresh URL from the same plugin after an application restart. Keep plugin IDs, source keys, and track IDs stable across updates.
 
@@ -21,8 +21,6 @@ Use the following source keys to resolve built-in sources. Playback URL resoluti
 | `netease`                 | `wy`       |
 | `qqmusic`                 | `tx`       |
 | `kugou`                   | `kg`       |
-
-Custom sources used only for lyric, cover, or comment matching do not appear on the search page. See [Metadata extensions](#metadata-fallback).
 
 ## Quick start
 
@@ -83,7 +81,7 @@ Declares source capabilities during initialization.
 
 **Parameters:**
 
-- `args.sources` (`Record<string, SourceCapability>`): Source capabilities indexed by source key. Independent sources use keys other than `wy`, `tx`, and `kg`
+- `args.sources` (`Record<string, SourceCapability>`): Source capabilities indexed by a source key within the plugin
 - `args.sources[key].name` (`string`): Required display name
 - `args.sources[key].actions` (`PluginAction[]`): Required; choose from [supported actions](#actions)
 - `args.sources[key].qualities` ([Quality[]](#qualities)): Optional supported qualities

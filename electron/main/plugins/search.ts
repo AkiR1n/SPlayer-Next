@@ -36,11 +36,7 @@ export const searchPluginTracks = async (args: PluginSearchArgs): Promise<Plugin
     });
   }
   const capability = rt.status.sources[source];
-  if (
-    ["wy", "tx", "kg"].includes(source) ||
-    !capability?.actions.includes("musicSearch") ||
-    !capability.actions.includes("musicUrl")
-  ) {
+  if (!capability?.actions.includes("musicSearch")) {
     throw Object.assign(new Error("Plugin source does not support searchable tracks"), {
       code: PluginErrorCodes.ACTION_UNSUPPORTED,
     });
@@ -53,8 +49,7 @@ export const searchPluginTracks = async (args: PluginSearchArgs): Promise<Plugin
     hostSession?.signal.aborted ||
     !rt.enabled ||
     rt.status.state !== "ready" ||
-    !rt.status.sources[source]?.actions.includes("musicSearch") ||
-    !rt.status.sources[source]?.actions.includes("musicUrl")
+    !rt.status.sources[source]?.actions.includes("musicSearch")
   ) {
     throw Object.assign(new Error("Plugin search was cancelled"), {
       code: PluginErrorCodes.CANCELLED,

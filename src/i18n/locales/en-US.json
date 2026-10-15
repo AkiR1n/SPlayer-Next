@@ -393,6 +393,8 @@
   },
   "search": {
     "title": "Search",
+    "plugins": "Plugins",
+    "pluginSource": "Select source",
     "titleSuffix": "search results",
     "emptyKeyword": "Type a keyword to start searching",
     "noResults": "No matching results",
