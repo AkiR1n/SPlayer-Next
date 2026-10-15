@@ -109,7 +109,7 @@ Calls the application's existing platform APIs using its current account session
 | Other successful platform calls | `{ ok: true, data: unknown }`                                     |
 | Endpoint failure                | `{ ok: false, error: string }`, possibly with `status` and `body` |
 
-Inspect the business status inside `body` or `data` as well as `ok`. Invalid parameters reject.
+Inspect the business status inside `body` or `data` as well as `ok`. Authentication credentials such as cookies and login tokens are removed from responses. Invalid parameters reject.
 
 For path-based calls, `params` contains request data; `crypto` selects `weapi`, `eapi`, `linuxapi`, `xeapi`, or `api` (default `api`):
 

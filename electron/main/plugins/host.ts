@@ -23,6 +23,25 @@ import { Notification } from "electron";
 import * as nowPlaying from "@main/services/nowPlaying";
 import type { OnlineSearchOptions } from "@shared/types/music";
 
+const AUTH_RESPONSE_FIELDS = new Set([
+  "cookie",
+  "cookies",
+  "setcookie",
+  "authorization",
+  "token",
+  "accesstoken",
+  "refreshtoken",
+  "idtoken",
+  "viptoken",
+  "musicu",
+  "musica",
+  "musickey",
+  "skey",
+  "pskey",
+  "pt4token",
+  "sessionkey",
+]);
+
 /** 处理一次 plugin→host 调用 */
 export const dispatchHostCall = async (
   pluginId: string,
@@ -157,7 +176,17 @@ export const dispatchHostCall = async (
         for (const key of ["cookie", "domain", "proxy", "headers"]) {
           if (Object.hasOwn(params, key)) throw new Error(`Host API does not accept ${key}`);
         }
-        data = await callPlatformApi(platform, name, params);
+        // 只在插件边界剥离认证凭据，界面调用仍接收原始响应。
+        const omitCredentials = (value: unknown): unknown => {
+          if (Array.isArray(value)) return value.map(omitCredentials);
+          if (value === null || typeof value !== "object") return value;
+          return Object.fromEntries(
+            Object.entries(value)
+              .filter(([key]) => !AUTH_RESPONSE_FIELDS.has(key.replace(/[-_]/g, "").toLowerCase()))
+              .map(([key, item]) => [key, omitCredentials(item)]),
+          );
+        };
+        data = omitCredentials(await callPlatformApi(platform, name, params));
         break;
       }
       case "notify": {

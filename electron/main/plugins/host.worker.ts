@@ -41,7 +41,7 @@ if (!parentPort) {
 }
 
 /**
- * 深度剥离不可克隆字段
+ * 剥离日志等辅助消息中不可克隆的字段
  * 保留 string/number/bool/null/Uint8Array/纯字典/数组；丢函数/symbol；
  * Buffer 转 Uint8Array、普通对象用 Object.create(null) 重建以脱掉 vm.Context 原型链
  * @param value - 任意值
@@ -76,15 +76,15 @@ const sanitizeForIpc = (value: unknown, depth = 0): unknown => {
 };
 
 /**
- * 跨 host→main 边界发消息
- * 直发；失败 → sanitize 后重发；仍失败 → 抛带 kind 上下文的错误
+ * 发送消息；业务数据不可克隆时直接报错，辅助消息允许裁剪后重发
  * @param msg - 待发消息
  */
 const send = (msg: SandboxOut): void => {
   try {
     parentPort.postMessage(msg);
     return;
-  } catch {
+  } catch (err) {
+    if (msg.kind === "hostCall" || msg.kind === "result") throw err;
     try {
       parentPort.postMessage(sanitizeForIpc(msg) as SandboxOut);
       return;
@@ -138,7 +138,7 @@ const hostCall = (
         pluginId: record.pluginId,
         callId,
         method,
-        args: sanitizeForIpc(args) as unknown[],
+        args,
       });
     } catch (err) {
       record.hostCallWaiters.delete(callId);
@@ -666,7 +666,7 @@ parentPort.on("message", async (event) => {
               pluginId: msg.pluginId,
               requestId: msg.requestId,
               ok: true,
-              data: sanitizeForIpc(data),
+              data,
             });
           }
         } catch (err) {
@@ -677,7 +677,8 @@ parentPort.on("message", async (event) => {
             requestId: msg.requestId,
             ok: false,
             error: {
-              code: ((err as any)?.code as string) ?? "PLUGIN_HANDLER_ERROR",
+              code:
+                typeof (err as any)?.code === "string" ? (err as any).code : "PLUGIN_HANDLER_ERROR",
               message: err instanceof Error ? err.message : String(err),
             },
           });

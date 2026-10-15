@@ -109,7 +109,7 @@ splayer.log.info(total, tracks);
 | 其他平台调用成功   | `{ ok: true, data: unknown }`                               |
 | 接口调用失败       | `{ ok: false, error: string }`，可能附带 `status` 与 `body` |
 
-`ok` 表示接口调用结果，业务是否成功还需检查 `body` 或 `data` 内的状态码。参数校验失败会 reject。
+`ok` 表示接口调用结果，业务是否成功还需检查 `body` 或 `data` 内的状态码。响应中的 Cookie、登录令牌等认证凭据会被移除。参数校验失败会 reject。
 
 按路径调用时，`params` 是请求数据，可用 `crypto` 选择 `weapi`、`eapi`、`linuxapi`、`xeapi` 或 `api` 请求模式，默认 `api`：
 
