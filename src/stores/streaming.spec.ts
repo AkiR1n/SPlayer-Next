@@ -1,5 +1,6 @@
-import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createPinia, disposePinia, getActivePinia, setActivePinia } from "pinia";
+import { nextTick } from "vue";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Track } from "@shared/types/player";
 import type { StreamingFavoriteChange } from "@shared/types/streaming";
 const state = vi.hoisted(() => ({
@@ -13,13 +14,17 @@ const state = vi.hoisted(() => ({
   unsubscribe: vi.fn(),
   load: vi.fn(),
 }));
-vi.mock("@/stores/media", () => ({ useMediaStore: () => state.media }));
+vi.mock("@/stores/media", async () => {
+  const { shallowReactive } = await import("vue");
+  return { useMediaStore: () => shallowReactive(state.media) };
+});
 vi.mock("@/stores/queue", () => ({
   queue: state.queue,
   updateQueueTracks: state.updateQueue,
   removeServerTracks: vi.fn(),
 }));
 import { useStreamingStore } from "./streaming";
+import { useMediaStore } from "./media";
 const track: Track = {
   id: "server:song",
   originalId: "song",
@@ -78,7 +83,64 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => disposePinia(getActivePinia()!));
+
 describe("流媒体收藏与快照状态", () => {
+  it("不同曲目的并发读取和写入互不作废", async () => {
+    const store = useStreamingStore();
+    const other = { ...track, id: "server:other", originalId: "other" };
+    const reads = await Promise.all([store.refreshFavorite(track), store.refreshFavorite(other)]);
+    expect(reads).toEqual([true, true]);
+    expect(await Promise.all([store.toggleFavorite(track), store.toggleFavorite(other)])).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it("旧读取响应不能覆盖刚确认的收藏，刷新后详情页仍读取新快照", async () => {
+    const store = useStreamingStore();
+    await store.init();
+    store.activeServerId = "server";
+    await store.refreshFavorite(track);
+    let finish!: (favorite: boolean) => void;
+    state.getFavorite.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const oldRead = store.refreshFavorite(track);
+    state.favoriteChanged!({ serverId: "server", trackId: "song", favorite: true });
+    await store.refreshLibrary(true);
+    finish(false);
+    expect(await oldRead).toBe(true);
+    expect(store.isFavorite(track)).toBe(true);
+    state.snapshot.mockResolvedValueOnce({
+      songs: [track],
+      albums: [],
+      artists: [],
+      playlists: [],
+    });
+    await store.refreshLibrary(true);
+    expect(store.isFavorite({ ...track, favorite: true })).toBe(false);
+  });
+
+  it("当前歌曲只订阅一次收藏刷新，销毁后不再监听切歌", async () => {
+    const store = useStreamingStore();
+    const media = useMediaStore();
+    await Promise.all([store.init(), store.init()]);
+    await store.refreshFavorite(track);
+    state.getFavorite.mockClear();
+    media.track = { ...track, id: "server:next", originalId: "next" };
+    await nextTick();
+    expect(state.getFavorite).toHaveBeenCalledExactlyOnceWith("server", "next");
+    await store.refreshFavorite(media.track!);
+    state.getFavorite.mockClear();
+    store.$dispose();
+    media.track = { ...track, id: "server:last", originalId: "last" };
+    await nextTick();
+    expect(state.getFavorite).not.toHaveBeenCalled();
+  });
   it("迟到快照不能覆盖请求期间已确认的收藏操作", async () => {
     const store = useStreamingStore();
     await store.init();
@@ -124,6 +186,7 @@ describe("流媒体收藏与快照状态", () => {
   });
 
   it("单曲变更更新当前歌曲与队列，并保持不同服务器的 ID 隔离", async () => {
+    state.getFavorite.mockResolvedValue(false);
     const store = useStreamingStore();
     await store.init();
     state.favoriteChanged!({ serverId: "other", trackId: "song", favorite: true });

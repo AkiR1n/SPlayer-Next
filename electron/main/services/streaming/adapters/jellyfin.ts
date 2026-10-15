@@ -18,6 +18,7 @@ const DEVICE_NAME = "SPlayer Desktop";
 const REQUEST_TIMEOUT_MS = 15_000;
 
 interface JellyItem {
+  PlaylistItemId?: string;
   UserData?: { IsFavorite?: boolean };
   AlbumPrimaryImageTag?: string;
   MediaStreams?: { Type?: string; Codec?: string; Index?: number; IsExternal?: boolean }[];
@@ -131,12 +132,14 @@ const fetchUserItems = async (
  * @param config - 已鉴权配置
  * @param query - 条目查询
  * @param endpoint - 特殊列表端点
+ * @param identify - 分页条目的唯一标识，歌单使用条目 ID
  * @returns 完整条目列表
  */
 const fetchAllItems = async (
   config: StreamingRuntimeConfig,
   query: Record<string, string | number>,
   endpoint?: string,
+  identify: (item: JellyItem) => string | undefined = (item) => item.Id,
 ): Promise<JellyItem[]> => {
   const items: JellyItem[] = [];
   for await (const page of streamPages(
@@ -148,7 +151,7 @@ const fetchAllItems = async (
       const result = await callApi<{ Items?: JellyItem[] }>(config, `${endpoint}?${params}`);
       return result.Items ?? [];
     },
-    (item) => item.Id,
+    identify,
     config.signal,
   ))
     items.push(...page);
@@ -486,6 +489,7 @@ export const jellyfinAdapter: StreamingAdapter = {
       config,
       { Fields: "MediaSources" },
       `Playlists/${playlistId}/Items`,
+      (item) => item.PlaylistItemId,
     );
     return items.map((item) => toTrack(config, item));
   },

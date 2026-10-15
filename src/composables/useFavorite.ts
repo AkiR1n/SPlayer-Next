@@ -5,7 +5,6 @@ import { useSettingsStore } from "@/stores/settings";
 import { toast } from "@/composables/useToast";
 import i18n from "@/i18n";
 import { useStreamingStore } from "@/stores/streaming";
-import { useMediaStore } from "@/stores/media";
 
 /**
  * 记一次收藏变更
@@ -17,26 +16,14 @@ const recordFavoriteChange = (track: Track, liked: boolean): void => {
 };
 
 /**
- * 红心收藏的统一入口
- * 按 track.source 分发
- * 返回的 `isLiked` 在模板里直接调用即可保持响应式
- * - local: useLibraryStore.toggleLike
- * - netease: useUserStore.toggleLike
+ * 提供按歌曲来源分发的收藏状态与操作
+ * @returns 收藏状态查询与切换方法
  */
 export const useFavorite = () => {
   const library = useLibraryStore();
   const user = useUserStore();
   const settings = useSettingsStore();
   const streaming = useStreamingStore();
-  const media = useMediaStore();
-  watch(
-    () => media.track?.id,
-    () => {
-      if (media.track?.source === "streaming")
-        void streaming.refreshFavorite(media.track).catch(() => {});
-    },
-    { immediate: true },
-  );
   const t = (key: string): string => i18n.global.t(key);
 
   /**

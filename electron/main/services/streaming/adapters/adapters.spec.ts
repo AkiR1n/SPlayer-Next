@@ -30,6 +30,27 @@ beforeEach(() => {
 const response = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200 });
 
 describe("流媒体协议契约", () => {
+  it.each(["jellyfin", "emby"] as const)(
+    "%s 歌单按条目 ID 分页，保留重复歌曲和原顺序",
+    async (type) => {
+      fetchMock.mockImplementation(async (source: string) => {
+        const url = new URL(source);
+        const offset = Number(url.searchParams.get("StartIndex"));
+        const items = [
+          { Id: "song", PlaylistItemId: "first", Name: "同一首歌" },
+          { Id: "song", PlaylistItemId: "second", Name: "同一首歌" },
+          { Id: "other", PlaylistItemId: "third", Name: "另一首歌" },
+        ];
+        return response({ Items: items.slice(offset, offset + 1) });
+      });
+      const tracks = await jellyfinAdapter.getPlaylistSongs({ ...config, type }, "playlist");
+      expect(tracks.map((track) => track.originalId)).toEqual(["song", "song", "other"]);
+      expect(
+        fetchMock.mock.calls.map(([url]) => new URL(url).searchParams.get("StartIndex")),
+      ).toEqual(["0", "1", "2", "3"]);
+    },
+  );
+
   it("空媒体库的歌手错误 70 视为空列表，鉴权错误仍然失败", async () => {
     fetchMock.mockResolvedValueOnce(
       response({

@@ -26,14 +26,16 @@ export const useStreamingStore = defineStore("streaming", () => {
   const syncError = ref("");
   let favoriteRevision = 0;
   const favoriteOverrides = shallowRef(new Map<string, { favorite: boolean; revision: number }>());
-  const favoriteRequests = new Map<string, Promise<boolean>>();
-  const togglingFavorites = new Set<string>();
+  /** 只保留在途操作，收到同曲更新后作废旧响应，完成即释放 */
+  const favoriteRequests = new Map<string, { changed: boolean; promise: Promise<boolean> }>();
+  const togglingFavorites = new Map<string, { changed: boolean }>();
 
   /** 运行时缓存 */
   const songs = shallowRef<Track[]>([]);
   const albums = shallowRef<Album[]>([]);
   const artists = shallowRef<Artist[]>([]);
   const playlists = shallowRef<Playlist[]>([]);
+  const indexedSongs = computed(() => new Map(songs.value.map((track) => [track.id, track])));
   let initialized = false;
   let initPromise: Promise<void> | undefined;
   const subscriptions: (() => void)[] = [];
@@ -65,7 +67,10 @@ export const useStreamingStore = defineStore("streaming", () => {
    */
   const applyFavorite = (change: StreamingFavoriteChange): void => {
     const id = `${change.serverId}:${change.trackId}`;
-    if (favoriteOverrides.value.get(id)?.favorite === change.favorite) return;
+    const read = favoriteRequests.get(id);
+    const write = togglingFavorites.get(id);
+    if (read) read.changed = true;
+    if (write) write.changed = true;
     const overrides = new Map(favoriteOverrides.value);
     overrides.delete(id);
     overrides.set(id, { favorite: change.favorite, revision: ++favoriteRevision });
@@ -87,8 +92,14 @@ export const useStreamingStore = defineStore("streaming", () => {
    * @param track - 流媒体歌曲
    * @returns 最新收藏状态
    */
-  const isFavorite = (track: Track): boolean =>
-    favoriteOverrides.value.get(track.id)?.favorite ?? track.favorite ?? false;
+  const isFavorite = (track: Track): boolean => {
+    const override = favoriteOverrides.value.get(track.id);
+    if (override) return override.favorite;
+    const indexed = indexedSongs.value.get(track.id);
+    return indexed && (indexed.serverRevision ?? 0) === (track.serverRevision ?? 0)
+      ? Boolean(indexed.favorite)
+      : (track.favorite ?? false);
+  };
 
   /**
    * 刷新单曲的服务端收藏状态，同曲并发读取共享一次请求
@@ -102,16 +113,20 @@ export const useStreamingStore = defineStore("streaming", () => {
     if (server && (server.mediaRevision ?? 0) !== (track.serverRevision ?? 0))
       return Promise.reject(new Error("流媒体账号或地址已更新，请重新选择歌曲"));
     const existing = favoriteRequests.get(track.id);
-    if (existing) return existing;
-    const request = window.api.streaming
-      .getFavorite(track.serverId, track.originalId)
-      .then((favorite) => {
-        applyFavorite({ serverId: track.serverId!, trackId: track.originalId!, favorite });
-        return favorite;
-      })
-      .finally(() => favoriteRequests.delete(track.id));
+    if (existing) return existing.promise;
+    const request: { changed: boolean; promise: Promise<boolean> } = {
+      changed: false,
+      promise: window.api.streaming
+        .getFavorite(track.serverId, track.originalId)
+        .then((favorite) => {
+          if (!request.changed)
+            applyFavorite({ serverId: track.serverId!, trackId: track.originalId!, favorite });
+          return isFavorite(track);
+        })
+        .finally(() => favoriteRequests.delete(track.id)),
+    };
     favoriteRequests.set(track.id, request);
-    return request;
+    return request.promise;
   };
 
   /**
@@ -121,16 +136,19 @@ export const useStreamingStore = defineStore("streaming", () => {
    */
   const toggleFavorite = async (track: Track): Promise<boolean | null> => {
     if (togglingFavorites.has(track.id)) return null;
-    togglingFavorites.add(track.id);
+    const write = { changed: false };
+    togglingFavorites.set(track.id, write);
     try {
       const previous = await refreshFavorite(track);
+      write.changed = false;
       const favorite = await window.api.streaming.setFavorite(
         track.serverId!,
         track.originalId!,
         !previous,
       );
-      applyFavorite({ serverId: track.serverId!, trackId: track.originalId!, favorite });
-      return favorite;
+      if (!write.changed)
+        applyFavorite({ serverId: track.serverId!, trackId: track.originalId!, favorite });
+      return isFavorite(track);
     } finally {
       togglingFavorites.delete(track.id);
     }
@@ -309,7 +327,11 @@ export const useStreamingStore = defineStore("streaming", () => {
       for (const [key, override] of overrides)
         if (key.startsWith(`${serverId}:`) && override.revision <= revision) overrides.delete(key);
       favoriteOverrides.value = overrides;
-      const byId = new Map(songs.value.map((track) => [track.id, track]));
+      for (const [id, request] of favoriteRequests)
+        if (id.startsWith(`${serverId}:`)) request.changed = true;
+      for (const [id, request] of togglingFavorites)
+        if (id.startsWith(`${serverId}:`)) request.changed = true;
+      const byId = indexedSongs.value;
       updateQueueTracks(
         queue.value.flatMap((track) =>
           byId.has(track.id) ? [{ ...track, favorite: byId.get(track.id)!.favorite }] : [],
@@ -428,6 +450,20 @@ export const useStreamingStore = defineStore("streaming", () => {
         activeServerId.value = null;
       }
       initialized = true;
+      const media = useMediaStore();
+      subscriptions.push(
+        watch(
+          () =>
+            media.track?.source === "streaming"
+              ? `${media.track.id}:${media.track.serverRevision ?? 0}`
+              : null,
+          () => {
+            if (media.track?.source === "streaming")
+              void refreshFavorite(media.track).catch(() => {});
+          },
+          { immediate: true },
+        ),
+      );
       if (activeServerId.value) void connectToServer(activeServerId.value);
     })().finally(() => {
       initPromise = undefined;

@@ -22,9 +22,7 @@ import { registerStreamingCoverProtocol } from "@main/services/streaming/coverPr
 import { invalidateStreamingSession } from "@main/services/streaming/adapters/resolve";
 import { cancelStreamingSync, queueStreamingSync } from "@main/services/streaming/sync";
 import type { StreamingServerInput } from "@shared/types/streaming";
-import { updateStreamingFavorite } from "@main/database/streaming/tracks";
-import { sendToMain } from "@main/utils/broadcast";
-import { recordStreamingStageFavorite } from "@main/services/streaming/snapshot";
+import { requestStreamingFavorite } from "@main/services/streaming/favorites";
 import { stopStreamingPlayer } from "./player";
 
 /** 注册流媒体 IPC 和封面协议 */
@@ -78,26 +76,13 @@ export const registerStreamingIpc = (): void => {
     await stopStreamingPlayer(serverId);
     invalidateStreamingSession(serverId);
   });
-  ipcMain.handle("streaming:getFavorite", async (_event, serverId: string, trackId: string) => {
-    const favorite = await withStreamingAdapter(serverId, (config, adapter) =>
-      adapter.getFavorite(config, trackId),
-    );
-    if (isDbOpen()) updateStreamingFavorite(serverId, trackId, favorite);
-    if (isDbOpen()) recordStreamingStageFavorite(serverId, trackId, favorite);
-    sendToMain("streaming:favoriteChanged", { serverId, trackId, favorite });
-    return favorite;
-  });
+  ipcMain.handle("streaming:getFavorite", (_event, serverId: string, trackId: string) =>
+    requestStreamingFavorite(serverId, trackId),
+  );
   ipcMain.handle(
     "streaming:setFavorite",
-    async (_event, serverId: string, trackId: string, value: boolean) => {
-      const favorite = await withStreamingAdapter(serverId, (config, adapter) =>
-        adapter.setFavorite(config, trackId, value),
-      );
-      if (isDbOpen()) updateStreamingFavorite(serverId, trackId, favorite);
-      if (isDbOpen()) recordStreamingStageFavorite(serverId, trackId, favorite);
-      sendToMain("streaming:favoriteChanged", { serverId, trackId, favorite });
-      return favorite;
-    },
+    (_event, serverId: string, trackId: string, value: boolean) =>
+      requestStreamingFavorite(serverId, trackId, value),
   );
   ipcMain.handle("streaming:getSnapshot", (_event, serverId: string) =>
     getLibrarySnapshot(serverId),
