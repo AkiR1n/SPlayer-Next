@@ -26,8 +26,8 @@ export const usePluginsStore = defineStore("plugins", () => {
   );
 
   /** 拉取列表并建立状态订阅 */
-  const load = async (): Promise<void> => {
-    list.value = await window.api.plugins.list();
+  const load = async (waitForPluginId?: string): Promise<void> => {
+    list.value = await window.api.plugins.list(waitForPluginId);
     loaded.value = true;
     if (!unsubscribe) {
       unsubscribe = window.api.plugins.onStatus((info) => {

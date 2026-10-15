@@ -1358,10 +1358,12 @@ export const initPlayer = async (): Promise<void> => {
   await settings.syncSystem();
   // 流媒体 store 必须在恢复队列前就绪，否则队列里的 streaming track 拿不到 cfg
   await useStreamingStore().init();
-  // 插件 store 同理：在线歌曲 URL 兜底走插件，列表必须在 loadTrack 前就绪
-  void usePluginsStore().load();
   await queue.restoreQueue();
   const status = useStatusStore();
+  // 独立来源曲目恢复前等待所属插件，其余插件继续在后台启动。
+  await usePluginsStore().load(
+    status.currentTrack?.source === "plugin" ? status.currentTrack.plugin?.pluginId : undefined,
+  );
   // 兼容移除“不循环”前持久化的旧状态
   if ((status.repeatMode as string) === "off") status.repeatMode = "list";
   // 恢复上次的音量和播放模式到主进程

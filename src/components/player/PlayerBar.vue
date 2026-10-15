@@ -56,6 +56,7 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
           <template #title-trailing>
             <div class="flex items-center shrink-0">
               <SButton
+                v-if="media.track?.source !== 'plugin'"
                 class="-my-1"
                 type="primary"
                 variant="text"
@@ -136,6 +137,7 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
         <template #title-trailing>
           <div class="flex items-center shrink-0">
             <SButton
+              v-if="media.track?.source !== 'plugin'"
               class="-my-1"
               type="primary"
               variant="text"

@@ -5,13 +5,25 @@ import type { OnlineSearchOptions, OnlineSearchResult } from "@shared/types/musi
 import { searchOnlineTracks } from "./onlineSearch";
 
 /** 校验播放必需字段，保留路径、平台附加 ID 等 Track 信息 */
-export const trackSchema = z.looseObject({
-  id: z.string().min(1),
-  source: z.enum(["local", "streaming", "netease", "qqmusic", "kugou"]),
-  title: z.string(),
-  artists: z.array(z.looseObject({ name: z.string() })),
-  duration: z.number().finite().nonnegative(),
-}) satisfies z.ZodType<Track>;
+export const trackSchema = z
+  .looseObject({
+    id: z.string().min(1),
+    source: z.enum(["local", "streaming", "plugin", "netease", "qqmusic", "kugou"]),
+    plugin: z
+      .object({
+        pluginId: z.string().min(1),
+        source: z.string().min(1),
+        musicInfo: z.looseObject({ id: z.string().min(1), name: z.string() }),
+      })
+      .optional(),
+    title: z.string(),
+    artists: z.array(z.looseObject({ name: z.string() })),
+    duration: z.number().finite().nonnegative(),
+  })
+  .refine((track) => track.source !== "plugin" || track.plugin !== undefined, {
+    message: "Plugin tracks require their source metadata",
+    path: ["plugin"],
+  }) satisfies z.ZodType<Track>;
 
 export const onlineSearchSchema = z.strictObject({
   platform: z.enum(["netease", "qqmusic", "kugou"]),

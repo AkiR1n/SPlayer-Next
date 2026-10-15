@@ -84,11 +84,47 @@ export const resolveByPlugin = async (
   skipPluginIds: readonly string[] = [],
 ): Promise<OnlineResolveResult> => {
   const fail = (errorCode: ErrorCode): OnlineResolveResult => ({ ok: false, errorCode });
+  const plugins = usePluginsStore();
+  if (track.source === "plugin") {
+    const origin = track.plugin;
+    if (!origin || skipPluginIds.includes(origin.pluginId)) {
+      return fail(ErrorCode.NO_PLUGIN_AVAILABLE);
+    }
+    const plugin = plugins.list.find((info) => info.manifest.id === origin.pluginId);
+    if (
+      !plugin?.enabled ||
+      plugin.status.state !== "ready" ||
+      !plugin.status.sources[origin.source]?.actions.includes("musicUrl")
+    ) {
+      return fail(ErrorCode.NO_PLUGIN_AVAILABLE);
+    }
+    try {
+      const res = await window.api.plugins.resolveUrl({
+        pluginId: origin.pluginId,
+        source: origin.source,
+        quality,
+        musicInfo: { ...origin.musicInfo, songmid: origin.musicInfo.id },
+      });
+      const current = plugins.list.find((info) => info.manifest.id === origin.pluginId);
+      if (
+        !current?.enabled ||
+        current.status.state !== "ready" ||
+        !current.status.sources[origin.source]?.actions.includes("musicUrl")
+      ) {
+        return fail(ErrorCode.NO_PLUGIN_AVAILABLE);
+      }
+      return res?.url
+        ? { ok: true, url: res.url, isTrial: false, provider: "plugin", pluginId: origin.pluginId }
+        : fail(ErrorCode.URL_RESOLVE_FAILED);
+    } catch (err) {
+      console.warn("[plugin] resolveUrl failed", origin.pluginId, err);
+      return fail(ErrorCode.URL_RESOLVE_FAILED);
+    }
+  }
   if (!isOnlinePlatform(track.source)) return fail(ErrorCode.URL_RESOLVE_FAILED);
   const pluginSource = PLATFORM_TO_PLUGIN_SOURCE[track.source];
   if (!pluginSource) return fail(ErrorCode.URL_RESOLVE_FAILED);
   const skip = new Set(skipPluginIds);
-  const plugins = usePluginsStore();
   const candidates = plugins.list.filter(
     (info) =>
       !skip.has(info.manifest.id) &&
@@ -267,6 +303,19 @@ export const resolveTrackSource = async (
   }
   const settings = useSettingsStore();
   const songLevel = settings.player.songLevel;
+  if (track.source === "plugin") {
+    const resolved = await resolveByPlugin(track, songLevel, options.skipPluginIds);
+    if (!resolved.ok) {
+      reportLoadError(resolved.errorCode, options);
+      return null;
+    }
+    return {
+      source: resolved.url,
+      fromCache: false,
+      provider: "plugin",
+      pluginId: resolved.pluginId,
+    };
+  }
   if (!options.skipDownloaded) {
     try {
       const downloaded = await window.api.download.lookup({

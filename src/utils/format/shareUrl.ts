@@ -31,6 +31,7 @@ export const getCollectionShareUrl = (collection: Collection | null | undefined)
       qqmusic: `https://y.qq.com/n/ryqq_v2/albumDetail/${collection.id}`,
       kugou: `https://www.kugou.com/album/info/${collection.id}/`,
       streaming: null,
+      plugin: null,
       local: null,
     },
     playlist: {
@@ -38,6 +39,7 @@ export const getCollectionShareUrl = (collection: Collection | null | undefined)
       qqmusic: `https://y.qq.com/n/ryqq_v2/playlist/${collection.id}`,
       kugou: `https://www.kugou.com/songlist/${collection.id}/`,
       streaming: null,
+      plugin: null,
       local: null,
     },
     radio: {
@@ -45,6 +47,7 @@ export const getCollectionShareUrl = (collection: Collection | null | undefined)
       qqmusic: `https://y.qq.com/n/ryqq_v2/player_radio#id=${collection.id}`,
       kugou: `https://www.kugou.com/song/#fm_id=${collection.id}`,
       streaming: null,
+      plugin: null,
       local: null,
     },
     cloud: {
@@ -52,6 +55,7 @@ export const getCollectionShareUrl = (collection: Collection | null | undefined)
       qqmusic: null,
       kugou: null,
       streaming: null,
+      plugin: null,
       local: null,
     },
   };

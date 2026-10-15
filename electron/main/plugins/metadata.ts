@@ -34,6 +34,11 @@ const findMatch = async (
   source: string,
   track: Track,
 ): Promise<MusicSearchCandidate | null> => {
+  if (track.source === "plugin") {
+    return track.plugin?.pluginId === rt.manifest.id && track.plugin.source === source
+      ? track.plugin.musicInfo
+      : null;
+  }
   if (PLATFORM_TO_PLUGIN_SOURCE[track.source] === source && track.id) {
     return {
       id: track.id,

@@ -1,6 +1,6 @@
 # Using Plugins
 
-Plugins can extend **music sources** (resolve playable track URLs) and **control** (react to playback and control the player). This page is for plugin users. Authors should start with [Plugin Development](/en/plugins/).
+Plugins can add independent catalogs, resolve playback URLs, provide lyrics and covers, or react to playback. This page explains installation and management. Authors should start with [Plugin Development](/en/plugins/development).
 
 ## Opening plugin management
 
@@ -17,7 +17,7 @@ For LX and compressed script support, see [LX Compatibility](/en/plugins/lx).
 ## Enable, disable, and uninstall
 
 - Newly installed plugins are enabled automatically.
-- Multiple plugins may be enabled at once. If several support the same source, SPlayer-Next selects one by priority.
+- Multiple plugins may be enabled at once. Built-in source resolution follows plugin priority; tracks from independent catalogs use their owning plugin.
 - A plugin can expose settings from its plugin card.
 - **Uninstalling deletes the script and its local data and cannot be undone.**
 
@@ -36,6 +36,12 @@ Click an installed plugin card to open its details. Under Permissions, turn each
 | Platform APIs    | Use the app’s current platform sessions to call APIs, including account actions such as liking tracks and editing playlists |
 
 Declared permissions are enabled by default. Turn them off in the details dialog; plugin updates preserve your choices.
+
+## Search and playback
+
+Once an independent catalog plugin is enabled and ready, it appears in the source selector on the search page. Select it, enter a query, then play the results or add them to the queue.
+
+Plugin tracks are saved with the queue and remain playable after restarting the app. Disabling or uninstalling their plugin keeps the tracks in the queue, but playback reports that the source is unavailable. Enable or reinstall the same plugin to use them again.
 
 ## Troubleshooting
 

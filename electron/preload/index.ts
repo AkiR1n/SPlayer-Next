@@ -6,6 +6,7 @@ import type {
   PluginInfo,
   PluginGrant,
   PluginResolveUrlArgs,
+  PluginSearchArgs,
   PluginInvokeMenuArgs,
   PluginMatchLyricArgs,
   PluginMatchCoverArgs,
@@ -410,7 +411,7 @@ const api = {
     setPermission: (id: string, grant: PluginGrant, enabled: boolean) =>
       ipcRenderer.invoke("plugin:setPermission", id, grant, enabled),
     // 列出所有已安装插件
-    list: () => ipcRenderer.invoke("plugin:list"),
+    list: (waitForPluginId) => ipcRenderer.invoke("plugin:list", waitForPluginId),
     // 从指定路径导入插件
     install: (filePath: string) => ipcRenderer.invoke("plugin:install", filePath),
     // 弹出原生文件选择框导入插件
@@ -429,6 +430,7 @@ const api = {
     checkUpdate: (id: string) => ipcRenderer.invoke("plugin:checkUpdate", id),
     // 一键更新
     applyUpdate: (id: string) => ipcRenderer.invoke("plugin:applyUpdate", id),
+    search: (args: PluginSearchArgs) => ipcRenderer.invoke("plugin:search", args),
     // 解析播放 URL
     resolveUrl: (args: PluginResolveUrlArgs) => ipcRenderer.invoke("plugin:resolveUrl", args),
     // 触发插件自定义菜单项

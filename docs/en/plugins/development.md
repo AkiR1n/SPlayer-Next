@@ -26,16 +26,16 @@ Re-import the file after editing to update the plugin. Keep `@id` unchanged and 
 
 One plugin can provide sources, subscribe to playback events, control playback, declare settings, and add menus. Select APIs by function.
 
-| Guide                                      | Purpose                                                      |
-| ------------------------------------------ | ------------------------------------------------------------ |
-| [Overview and Architecture](/en/plugins/)  | Manifest, runtime, lifecycle, permissions, and debugging     |
-| [Plugin API Levels](/en/plugins/changelog) | Choose `@apiLevel` and review API evolution                  |
-| [Common APIs](/en/plugins/api)             | Search, platform APIs, network, storage, settings, and menus |
-| [Source Resolution](/en/plugins/source)    | Provide playback URLs, lyrics, covers, and comments          |
-| [Playback Control](/en/plugins/control)    | Subscribe to events and control playback, queues, and modes  |
-| [Plugin Updates](/en/plugins/update)       | Publish releases and update URLs                             |
-| [LX Compatibility](/en/plugins/lx)         | Integrate existing LX scripts                                |
-| [Type Reference](/en/types)                | Track, artist, lyric, and comment structures                 |
+| Guide                                      | Purpose                                                                 |
+| ------------------------------------------ | ----------------------------------------------------------------------- |
+| [Overview and Architecture](/en/plugins/)  | Manifest, runtime, lifecycle, permissions, and debugging                |
+| [Plugin API Levels](/en/plugins/changelog) | Choose `@apiLevel` and review API evolution                             |
+| [Common APIs](/en/plugins/api)             | Search, platform APIs, network, storage, settings, and menus            |
+| [Source Resolution](/en/plugins/source)    | Independent catalog search, playback URLs, lyrics, covers, and comments |
+| [Playback Control](/en/plugins/control)    | Subscribe to events and control playback, queues, and modes             |
+| [Plugin Updates](/en/plugins/update)       | Publish releases and update URLs                                        |
+| [LX Compatibility](/en/plugins/lx)         | Integrate existing LX scripts                                           |
+| [Type Reference](/en/types)                | Track, artist, lyric, and comment structures                            |
 
 Set `@apiLevel` to the minimum level required by the methods you use. Each method documents its API version and permissions. Declare required permissions through `@grant` in the script header.
 
@@ -48,6 +48,8 @@ Declare plugin metadata, then register capabilities and handlers. Keep network r
 ### Local verification
 
 Import the script and confirm its state is Ready before triggering its behavior. Switch tracks or pause playback to check events; play a supported source to check resolution; use the plugin card and track menus to check settings and menu actions.
+
+For an independent source, start from the [complete example](/en/plugins/source#quick-start). Verify search and pagination, playback and queue insertion, then queue recovery after restarting the app. Check lyrics and missing-cover resolution. Disabling the plugin should keep queued tracks and report that the source is unavailable.
 
 Logs are stored under `{userData}/app-data/logs/`. Check arguments, permissions, and business responses when a call fails. See [Debugging](/en/plugins/#debugging).
 

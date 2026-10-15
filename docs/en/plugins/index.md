@@ -6,8 +6,8 @@ Plugins are JavaScript files that use the injected `splayer` object to extend SP
 | --------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | [Plugin Development](/en/plugins/development) | First plugin, development workflow, and Agent resources                                     |
 | [Common APIs](/en/plugins/api)                | HTTP requests, music search, platform APIs, notifications, storage, settings, and utilities |
-| [Source resolution](/en/plugins/source)       | Playback URLs, lyrics, covers, and comments                                                 |
-| [Playback control](/en/plugins/control)       | Playback events, player controls, queues, and track menus                                   |
+| [Source resolution](/en/plugins/source)       | Independent catalog search, playback URLs, lyrics, covers, and comments                     |
+| [Playback control](/en/plugins/control)       | Playback events, player controls, queues, and play modes                                    |
 | [Plugin API Levels](/en/plugins/changelog)    | Capabilities introduced at each API level                                                   |
 | [Plugin updates](/en/plugins/update)          | Version metadata and update delivery                                                        |
 | [LX Compatibility](/en/plugins/lx)            | Importing LX scripts, supported APIs, and update alerts                                     |
@@ -36,10 +36,11 @@ Plugins execute outside the UI thread but share the host event loop. Blocking co
 
 ### Interaction flow
 
-The host initiates source resolution. It selects a plugin supporting the requested source, calls its action handler, and receives a playback URL or metadata. Network and storage calls made by handlers are executed in the main process.
+The host initiates source requests. The search page calls the selected source's search handler and converts results into tracks; the player then calls URL, lyric, and cover handlers. Independent sources are routed using the plugin ID and source key saved in the track. Built-in sources follow plugin priority. Network and storage calls made by handlers run in the main process.
 
 ```text
-Player → Select plugin providing sources → Action handler → Playback URL / metadata
+Search page → Source search handler → Track → Playback queue
+Player → Track source handler → Playback URL / metadata
 ```
 
 The application pushes track, lyric, and playback changes to plugins subscribed to those events. Playback commands from plugins are checked in the main process and forwarded to the player.

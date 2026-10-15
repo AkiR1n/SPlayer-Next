@@ -261,10 +261,14 @@ export interface MusicSearchCandidate {
   album?: string;
   /** 时长（毫秒） */
   durationMs?: number;
+  /** 封面图片 URL */
+  cover?: string;
   [key: string]: unknown;
 }
 export interface MusicSearchRes {
   list: MusicSearchCandidate[];
+  total?: number;
+  hasMore?: boolean;
 }
 
 /** musicLyric：取某条已匹配候选的歌词 */
@@ -499,6 +503,16 @@ export type HostCallMethod =
 
 /* ========== 渲染端 ↔ 主进程的 IPC 请求参数 ========== */
 
+export interface PluginSearchArgs extends MusicSearchReq {
+  pluginId: string;
+}
+
+export interface PluginSearchResult {
+  items: Track[];
+  total: number;
+  hasMore: boolean;
+}
+
 export interface PluginResolveUrlArgs {
   pluginId: string;
   source: string;
@@ -566,7 +580,7 @@ export interface PluginsApi {
   /** 修改单个声明权限，即时生效 */
   setPermission: (id: string, grant: PluginGrant, enabled: boolean) => Promise<void>;
   /** 列出所有已安装插件 */
-  list: () => Promise<PluginInfo[]>;
+  list: (waitForPluginId?: string) => Promise<PluginInfo[]>;
   /** 从指定路径导入插件（进阶：一般由 pickAndInstall 触发） */
   install: (filePath: string) => Promise<{ ok: boolean; id?: string; error?: string }>;
   /** 弹出原生文件选择框导入插件 */
@@ -605,6 +619,8 @@ export interface PluginsApi {
   applyUpdate: (
     id: string,
   ) => Promise<{ ok: boolean; plugin?: PluginInfo; error?: string; fallbackUrl?: string }>;
+  /** 搜索独立插件来源，返回可直接播放的曲目 */
+  search: (args: PluginSearchArgs) => Promise<PluginSearchResult>;
   /** 获取播放 URL */
   resolveUrl: (args: PluginResolveUrlArgs) => Promise<MusicUrlRes>;
   /** 触发某插件的自定义菜单项 */

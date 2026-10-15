@@ -1,5 +1,6 @@
 import type { LyricFormat } from "./lyrics";
 import type { Platform } from "./platform";
+import type { MusicSearchCandidate } from "./plugin";
 
 /** 播放器状态 */
 export type PlayerState = "idle" | "loading" | "playing" | "paused" | "stopped";
@@ -10,8 +11,8 @@ export type RepeatMode = "list" | "one";
 /** 随机模式 */
 export type ShuffleMode = "off" | "on";
 
-/** 歌曲来源：本地 / 流媒体 / 在线平台 */
-export type TrackSource = "local" | "streaming" | Platform;
+/** 歌曲来源：本地 / 流媒体 / 在线平台 / 插件 */
+export type TrackSource = "local" | "streaming" | "plugin" | Platform;
 
 /** 播放来源类型 */
 export type PlaybackOriginType = "track" | "playlist" | "album" | "artist" | "radio" | "page";
@@ -90,6 +91,12 @@ export interface Track {
   mediaId?: string;
   /** 歌曲来源 */
   source: TrackSource;
+  /** 独立插件来源及重新取数所需的轻量曲目信息 */
+  plugin?: {
+    pluginId: string;
+    source: string;
+    musicInfo: MusicSearchCandidate;
+  };
   /** 本地路径 */
   path?: string;
   /** CUE 文件路径 */

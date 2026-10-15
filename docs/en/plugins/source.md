@@ -1,12 +1,20 @@
 # Source resolution
 
-Register source capabilities to provide playback URLs, lyrics, covers, or comments. HTTP requests, storage, and utilities are covered in [Common APIs](/en/plugins/api).
+Provide an independent catalog with search and playback, or add playback URLs, lyrics, covers, and comments for existing tracks. HTTP requests, storage, and utilities are covered in [Common APIs](/en/plugins/api).
 
-## Request flow
+## Sources and routing
 
-The host selects a plugin for the track source and calls its registered action handler. Playback URL resolution follows the user's plugin priority; the first valid result is used.
+### Independent sources {#independent}
 
-Playback URLs use fixed source keys. Metadata capabilities can also use custom keys.
+A custom source key declaring both `musicSearch` and `musicUrl` appears as an independent source on the search page. Search, playback, lyric, and cover requests go directly to the owning plugin. Sources appear only while the plugin is enabled and ready.
+
+The host converts search candidates into [Track](/en/types#track) objects, retaining the plugin ID, source key, and candidate data. The queue saves this information so playback can request a fresh URL from the same plugin after an application restart. Keep plugin IDs, source keys, and track IDs stable across updates.
+
+Disabling or uninstalling the plugin keeps its tracks in the queue, but makes them unavailable for playback. Enable or reinstall the same plugin to use them again.
+
+### Built-in sources {#builtin}
+
+Use the following source keys to resolve built-in sources. Playback URL resolution follows the user's plugin priority; the first valid result is used.
 
 | Track platform identifier | Source key |
 | ------------------------- | ---------- |
@@ -14,31 +22,54 @@ Playback URLs use fixed source keys. Metadata capabilities can also use custom k
 | `qqmusic`                 | `tx`       |
 | `kugou`                   | `kg`       |
 
+Custom sources used only for lyric, cover, or comment matching do not appear on the search page. See [Metadata extensions](#metadata-fallback).
+
 ## Quick start
+
+This plugin provides a searchable catalog. Save it as a `.js` file, import it through Plugin Management, and search for “Example”.
 
 ```js
 /**
- * @name Example source
- * @id you.example-source
+ * @name Example library
+ * @id you.example-library
  * @version 1.0.0
- * @apiLevel 1
+ * @apiLevel 5
  */
+const catalog = [
+  {
+    id: "demo-1",
+    name: "Example song",
+    singer: "Example artist",
+    album: "Example album",
+    durationMs: 180000,
+  },
+];
 splayer.register({
   sources: {
-    wy: { name: "Example source", actions: ["musicUrl"], qualities: ["hq"] },
+    example: {
+      name: "Example library",
+      actions: ["musicSearch", "musicUrl", "musicLyric", "musicPic"],
+      qualities: ["hq"],
+    },
   },
 });
-splayer.on("musicUrl", async ({ musicInfo, quality }) => {
-  const response = await splayer.request(
-    "https://api.example.com/url?id=" + encodeURIComponent(musicInfo.songmid) + "&q=" + quality,
-    { responseType: "json" },
+splayer.on("musicSearch", async ({ keyword, page = 1, limit = 20 }) => {
+  const matches = catalog.filter((song) =>
+    (song.name + " " + song.singer).toLowerCase().includes(keyword.toLowerCase()),
   );
-  if (!response.body?.url) throw new Error("No playback URL");
-  return { url: response.body.url, quality };
+  return { list: matches.slice((page - 1) * limit, page * limit), total: matches.length };
 });
+splayer.on("musicUrl", async ({ musicInfo }) => ({
+  url: "https://media.example.com/" + encodeURIComponent(musicInfo.id) + ".mp3",
+  quality: "hq",
+}));
+splayer.on("musicLyric", async () => ({ lyric: "[00:00.00]Example lyrics" }));
+splayer.on("musicPic", async ({ musicInfo }) => ({
+  url: "https://media.example.com/" + encodeURIComponent(musicInfo.id) + ".jpg",
+}));
 ```
 
-Replace the example endpoint with your service. Save as a `.js` file and import it through Plugin Management.
+The media addresses are placeholders. Replace them with your own audio and cover URLs before playing. For a remote catalog, replace `musicSearch` with a service request returning the same candidate structure; see [Search tracks](#musicsearch).
 
 ## Source registration {#register}
 
@@ -46,17 +77,16 @@ Declares source capabilities during initialization.
 
 **Call:** `splayer.register(args)`
 
-**API version:** 1
+**API version:** 1; independent source search and playback require 5.
 
 **Permission:** None
 
-**Parameter:** `args.sources: Record<string, SourceCapability>`. Keys identify sources; each value contains:
+**Parameters:**
 
-| Field       | Type                    | Description                                         |
-| ----------- | ----------------------- | --------------------------------------------------- |
-| `name`      | `string`                | Required display name                               |
-| `actions`   | `PluginAction[]`        | Required; choose from [supported actions](#actions) |
-| `qualities` | [Quality[]](#qualities) | Optional supported qualities                        |
+- `args.sources` (`Record<string, SourceCapability>`): Source capabilities indexed by source key. Independent sources use keys other than `wy`, `tx`, and `kg`
+- `args.sources[key].name` (`string`): Required display name
+- `args.sources[key].actions` (`PluginAction[]`): Required; choose from [supported actions](#actions)
+- `args.sources[key].qualities` ([Quality[]](#qualities)): Optional supported qualities
 
 **Returns:** `void`. Multiple sources share each action handler; dispatch using the request's `source`.
 
@@ -86,7 +116,7 @@ Register a matching handler with `splayer.on` for each action.
 
 Register handlers with `splayer.on(action, handler)`, which returns `void`. `action` is the action name; `handler: (req) => Promise<res>` receives a host request and returns a result. Registering the same action again replaces its handler. Registration requires no permission; methods called inside a handler retain their own requirements.
 
-`musicUrl` has a 20-second timeout; other source actions have 15 seconds. Throw when no result is available; the host can try another plugin.
+`musicUrl` has a 20-second timeout; other source actions have 15 seconds. Throw when no result is available. Built-in source resolution can try another plugin; independent source playback calls only the owning plugin.
 
 ### Playback URL {#musicurl}
 
@@ -102,19 +132,19 @@ Provides a playable URL.
 
 - `source` (`string`): Requested source key
 - `quality` (`Quality`): Requested quality
-- `musicInfo` (`object`): Track information below
+- `musicInfo` (`object`): For independent sources, the original search candidate plus `songmid` as an alias of `id`. Built-in sources receive the fields below
 
-| `musicInfo` field           | Type             | Description                                  |
-| --------------------------- | ---------------- | -------------------------------------------- |
-| `songmid` / `id` / `songId` | `string`         | Aliases for the platform track ID            |
-| `name`                      | `string`         | Title                                        |
-| `singer`                    | `string`         | Artist names joined with `/`                 |
-| `source`                    | `string`         | Source key                                   |
-| `interval`                  | `string \| null` | Duration as `mm:ss`, or `null`               |
-| `img`                       | `string \| null` | Cover URL                                    |
-| `hash`                      | `string`         | Optional track hash for sources that use one |
-| `albumId` / `albumName`     | `string`         | Album ID / name, empty when unknown          |
-| `meta`                      | `object`         | Additional album, cover, and other metadata  |
+- `musicInfo.songmid / id / songId` (`string`): Aliases for the platform track ID
+- `musicInfo.name` (`string`): Title
+- `musicInfo.singer` (`string`): Artist names joined with `/`
+- `musicInfo.source` (`string`): Source key
+- `musicInfo.interval` (`string | null`): Duration as `mm:ss`, or `null`
+- `musicInfo.img` (`string | null`): Cover URL
+- `musicInfo.hash` (`string`): Optional track hash for sources that use one
+- `musicInfo.albumId / albumName` (`string`): Album ID / name, empty when unknown
+- `musicInfo.meta` (`object`): Additional album, cover, and other metadata
+
+**Returns:** `Promise<{ url: string; quality?: Quality; expire?: number }>`.
 
 | Result field | Type      | Description                                       |
 | ------------ | --------- | ------------------------------------------------- |
@@ -124,11 +154,66 @@ Provides a playable URL.
 
 See [Quick start](#quick-start) for a call example. If the requested quality is unavailable, return a lower quality and identify it in `quality`.
 
+### Search tracks {#musicsearch}
+
+Returns independent source search results, or candidates for matching lyrics, covers, and other metadata.
+
+**Call:** `splayer.on("musicSearch", handler)`
+
+**API version:** 1
+
+**Permission:** None
+
+**Parameters:**
+
+- `source` (`string`): Source key
+- `keyword` (`string`): The user's search text; usually title and artist for metadata matching
+- `page` (`number`): Optional page number, starting at 1
+- `limit` (`number`): Optional page size, up to 50 for independent source searches
+
+**Returns:** `Promise<{ list: Candidate[]; total?: number; hasMore?: boolean }>`. Return `{ list: [] }` when nothing matches. `total` is the matching result count; `hasMore` indicates whether another page exists. Both are supported from API 5.
+
+For pagination, prefer an explicit `hasMore`, or return `total` when known. If both are omitted, the host assumes another page when the result count reaches `limit`.
+
+| `Candidate` field | Type       | Description                                                      |
+| ----------------- | ---------- | ---------------------------------------------------------------- |
+| `id`              | `string`   | Required source track ID                                         |
+| `name`            | `string`   | Required title                                                   |
+| `singer`          | `string`   | Optional artist                                                  |
+| `album`           | `string`   | Optional album                                                   |
+| `durationMs`      | `number`   | Optional duration in milliseconds, used for display and matching |
+| `cover`           | `string`   | Optional cover URL, added in API 5                               |
+| Other fields      | JSON value | Passed unchanged to subsequent handlers                          |
+
+Independent source candidates are saved with the queue. Each serialized candidate is limited to 8 KiB; oversized or invalid entries are ignored. Retain only identifiers and lightweight fields needed to fetch resources again. Retrieve lyrics, image content, and temporary playback URLs on demand in their handlers.
+
+```js
+splayer.on("musicSearch", async ({ keyword, page = 1, limit = 20 }) => {
+  const query = new URLSearchParams({ keyword, page: String(page), limit: String(limit) });
+  const { body } = await splayer.request("https://api.example.com/search?" + query, {
+    responseType: "json",
+  });
+  return {
+    list: body.songs.map((song) => ({
+      id: String(song.id),
+      name: song.title,
+      singer: song.artist,
+      album: song.album,
+      durationMs: song.durationMs,
+      cover: song.cover,
+    })),
+    hasMore: body.hasMore,
+  };
+});
+```
+
 ## Metadata extensions {#metadata-fallback}
 
 ### Matching flow {#matching}
 
-Register `musicSearch` and any of `musicLyric`, `musicPic`, or `musicComment`. The host matches candidates by title, artist, album, and duration, then passes the selected candidate as `musicInfo`. A matching platform can use its track ID directly and skip search.
+Independent source lyrics and covers call the owning plugin directly with the original search candidate as `musicInfo`, without another search. A candidate's `cover` is used directly; `musicPic` is called only when no cover is available.
+
+To add metadata for other sources, register `musicSearch` and any of `musicLyric`, `musicPic`, or `musicComment`. The host matches candidates by title, artist, album, and duration, then passes the selected candidate as `musicInfo`. A matching platform can use its track ID directly and skip search.
 
 Lyrics fall back to plugins after built-in providers or the streaming server. Cover fallback runs only when a track has no cover. Comment sources appear in the comments view and require both `musicSearch` and `musicComment`.
 
@@ -144,55 +229,9 @@ splayer.register({
 });
 ```
 
-### Search candidates {#musicsearch}
-
-Searches metadata candidates for host matching.
-
-**Call:** `splayer.on("musicSearch", handler)`
-
-**API version:** 1
-
-**Permission:** None
-
-**Parameters:**
-
-- `source` (`string`): Source key
-- `keyword` (`string`): Search text, usually title and artist
-- `page` (`number`): Optional page number
-- `limit` (`number`): Optional requested candidate count
-
-**Result:** `{ list: Candidate[] }`, using an empty list when nothing matches.
-
-| `Candidate` field | Type     | Description                                                         |
-| ----------------- | -------- | ------------------------------------------------------------------- |
-| `id`              | `string` | Required source track ID                                            |
-| `name`            | `string` | Required title                                                      |
-| `singer`          | `string` | Optional artist                                                     |
-| `album`           | `string` | Optional album                                                      |
-| `durationMs`      | `number` | Optional duration in milliseconds, used to reject incorrect matches |
-| Other fields      | Any      | Passed unchanged to subsequent handlers                             |
-
-```js
-splayer.on("musicSearch", async ({ keyword, page = 1, limit = 20 }) => {
-  const query = new URLSearchParams({ keyword, page: String(page), limit: String(limit) });
-  const { body } = await splayer.request("https://api.example.com/search?" + query, {
-    responseType: "json",
-  });
-  return {
-    list: body.songs.map((song) => ({
-      id: String(song.id),
-      name: song.title,
-      singer: song.artist,
-      album: song.album,
-      durationMs: song.durationMs,
-    })),
-  };
-});
-```
-
 ### Fetch lyrics {#musiclyric}
 
-Returns lyrics for the matched candidate.
+Returns lyrics for a track.
 
 **Call:** `splayer.on("musicLyric", handler)`
 
@@ -203,7 +242,9 @@ Returns lyrics for the matched candidate.
 **Parameters:**
 
 - `source` (`string`): Source key.
-- `musicInfo` (`Candidate`): Matched candidate.
+- `musicInfo` (`Candidate`): The original independent source candidate, or a candidate selected by metadata matching.
+
+**Returns:** `Promise<{ lyric: string; tlyric?: string; rlyric?: string; awlyric?: string }>`.
 
 | Result field | Type     | Description                                      |
 | ------------ | -------- | ------------------------------------------------ |
@@ -212,7 +253,7 @@ Returns lyrics for the matched candidate.
 | `rlyric`     | `string` | Optional romanization                            |
 | `awlyric`    | `string` | Optional word-timed lyrics, format auto-detected |
 
-Word-timed `awlyric` takes precedence. The host tries other sources when no usable lyrics are returned.
+Word-timed `awlyric` takes precedence. For metadata matching, the host tries other candidates when no usable lyrics are returned; independent sources use only their owning plugin.
 
 ```js
 splayer.on("musicLyric", async ({ musicInfo }) => {
@@ -226,7 +267,7 @@ splayer.on("musicLyric", async ({ musicInfo }) => {
 
 ### Fetch covers {#musicpic}
 
-Returns the matched candidate's cover.
+Returns a track's cover.
 
 **Call:** `splayer.on("musicPic", handler)`
 
@@ -237,9 +278,9 @@ Returns the matched candidate's cover.
 **Parameters:**
 
 - `source` (`string`): Source key.
-- `musicInfo` (`Candidate`): Matched candidate.
+- `musicInfo` (`Candidate`): The original independent source candidate, or a candidate selected by metadata matching.
 
-**Result:** `{ url: string }`, a direct remote image URL; an empty URL means no result.
+**Returns:** `Promise<{ url: string }>`, a direct remote image URL; an empty URL means no result.
 
 ```js
 splayer.on("musicPic", async ({ musicInfo }) => {
@@ -269,7 +310,7 @@ Returns a page of comments for the matched candidate.
 - `page` (`number`): Page number, starting at 1
 - `limit` (`number`): Page size
 
-**Result:** `{ list: Comment[]; total: number; page: number; limit: number }`, containing the current page, total count, page number, and page size.
+**Returns:** `Promise<{ list: Comment[]; total: number; page: number; limit: number }>`, containing the current page, total count, page number, and page size.
 
 | `Comment` field     | Type        | Description                            |
 | ------------------- | ----------- | -------------------------------------- |
