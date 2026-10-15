@@ -9,6 +9,10 @@ const state = vi.hoisted(() => ({
   directory: "",
   rows: new Map<string, SongCacheRow>(),
   limit: 64 / 1024 ** 3,
+  resolveMedia: vi.fn(),
+}));
+vi.mock("@main/services/streaming/mediaSource", () => ({
+  resolveStreamingMediaSource: state.resolveMedia,
 }));
 vi.mock("electron", () => ({ app: { on: vi.fn() } }));
 vi.mock("@main/utils/config", () => ({ getSongCacheDir: () => state.directory }));
@@ -42,11 +46,28 @@ describe("歌曲预载缓存生命周期", () => {
   beforeEach(async () => {
     vi.resetModules();
     state.rows.clear();
+    state.resolveMedia.mockReset().mockResolvedValue({ url: "https://server/audio?token=private" });
     state.directory = await fs.mkdtemp(path.join(os.tmpdir(), "splayer-cache-test-"));
   });
   afterEach(async () => {
     vi.unstubAllGlobals();
     await fs.rm(state.directory, { recursive: true, force: true });
+  });
+
+  it("流媒体缓存只在主进程解析认证地址", async () => {
+    const fetcher = vi.fn(async (_url: string, _options: RequestInit) => audioResponse());
+    vi.stubGlobal("fetch", fetcher);
+    const cache = await import("./songCache");
+    expect(await cache.fetchAsync("remote", "streaming", "streaming://server/song")).not.toBeNull();
+    expect(state.resolveMedia).toHaveBeenCalledWith(
+      "server",
+      "song",
+      expect.any(String),
+      expect.any(AbortSignal),
+      0,
+    );
+    expect(fetcher.mock.calls[0]?.[0]).toBe("https://server/audio?token=private");
+    expect(state.rows.get("remote")).not.toHaveProperty("url");
   });
 
   it("取消预载消费者不会中断共用的后台下载", async () => {

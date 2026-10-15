@@ -61,18 +61,20 @@ const handleListScroll = (event: Event) => {
   }
 };
 
-/** 加载数据 */
+/** 加载当前服务器的歌手详情，并作废上一轮请求 */
 const loadArtist = async (): Promise<void> => {
   collapsed.value = false;
   loadAbort?.abort();
   const myAbort = new AbortController();
   loadAbort = myAbort;
   loading.value = true;
+  artist.value = null;
   error.value = "";
   hasMoreSongs.value = false;
 
   try {
     await loadArtistService(source, id, {
+      serverId: typeof route.query.serverId === "string" ? route.query.serverId : undefined,
       fallbackName: typeof route.query.name === "string" ? route.query.name : undefined,
       signal: myAbort.signal,
       onUpdate: (next) => {
@@ -127,7 +129,7 @@ const onReachBottom = async (): Promise<void> => {
   }
 };
 
-loadArtist();
+watch(() => route.query.serverId, loadArtist, { immediate: true });
 
 onBeforeUnmount(() => {
   loadAbort?.abort();
@@ -377,7 +379,15 @@ const albumItems = computed<CoverItem[]>(() => {
               :items="albumItems"
               :padding-x="20"
               :padding-bottom="24"
-              @click="(item) => navigateToAlbum(item.title, { source, albumId: item.id })"
+              @click="
+                (item) =>
+                  navigateToAlbum(item.title, {
+                    source,
+                    albumId: item.id,
+                    serverId:
+                      typeof route.query.serverId === 'string' ? route.query.serverId : undefined,
+                  })
+              "
             />
           </div>
         </Transition>

@@ -554,6 +554,27 @@ export const play = async (): Promise<void> => {
   }
 };
 
+/** 自然结束后重播当前歌曲，流媒体重新取址并建立独立会话 */
+export const restartCurrentTrack = async (): Promise<void> => {
+  const media = useMediaStore();
+  const track = media.track;
+  if (!track) return;
+  const status = useStatusStore();
+  const myPauseToken = pauseToken;
+  if (track.source === "streaming") {
+    const loading = loadTrack(track, media.playbackContext, false);
+    const token = trackToken;
+    await loading;
+    if (token !== trackToken || myPauseToken !== pauseToken || status.state !== "paused") return;
+  } else {
+    const seeking = seek(0, true);
+    const token = trackToken;
+    await seeking;
+    if (token !== trackToken || myPauseToken !== pauseToken) return;
+  }
+  await play();
+};
+
 /** 切换播放/暂停 */
 export const togglePlay = (): void => {
   const status = useStatusStore();

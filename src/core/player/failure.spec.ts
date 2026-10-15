@@ -52,6 +52,7 @@ const mocks = vi.hoisted(() => {
     stop: vi.fn(),
     seek: vi.fn(),
     play: vi.fn(),
+    pause: vi.fn(),
     stopAfterEnd: false,
     fmStart: vi.fn(),
     fmNext: vi.fn(),
@@ -148,6 +149,7 @@ beforeEach(() => {
   mocks.stop.mockResolvedValue({ success: true });
   mocks.seek.mockResolvedValue({ success: true });
   mocks.play.mockResolvedValue({ success: true });
+  mocks.pause.mockResolvedValue({ success: true });
   mocks.alert.mockResolvedValue(undefined);
   Object.assign(window, {
     api: {
@@ -156,6 +158,7 @@ beforeEach(() => {
         stop: mocks.stop,
         seek: mocks.seek,
         play: mocks.play,
+        pause: mocks.pause,
         transitionPrepared: mocks.transition,
       },
     },
@@ -181,6 +184,7 @@ const sendStatus = async (state: PlayerState): Promise<void> => {
 
 describe("单曲失败自动跳曲", () => {
   it("自然单曲重播明确通知主进程开启新轮次，睡眠定时停止时不重播", async () => {
+    mocks.media.track = mocks.tracks[0]!;
     mocks.status.repeatMode = "one";
     mocks.status.state = "stopped";
     /** 原生 seek 从曲尾重播时会先发送播放状态，再返回跳转结果 */
@@ -197,6 +201,95 @@ describe("单曲失败自动跳曲", () => {
     await handleEvent({ type: "ended" });
     expect(mocks.seek).toHaveBeenCalledOnce();
     expect(mocks.play).toHaveBeenCalledOnce();
+  });
+
+  it.each(["streaming://server/song", "C:/cache/song.flac"])(
+    "流媒体单曲重播重新加载 %s，保留队列位置且不复用旧会话",
+    async (source) => {
+      const track: Track = {
+        ...mocks.tracks[0]!,
+        source: "streaming",
+        serverId: "server",
+        originalId: "song",
+      };
+      mocks.media.track = track;
+      mocks.status.repeatMode = "one";
+      mocks.status.state = "stopped";
+      mocks.resolve.mockResolvedValue({ source, provider: "streaming", fromCache: false });
+      const { handleEvent } = await import("./events");
+      await handleEvent({ type: "ended" });
+      expect(mocks.load).toHaveBeenCalledExactlyOnceWith(
+        source,
+        expect.objectContaining({ meta: track, autoPlay: false }),
+      );
+      expect(mocks.seek).not.toHaveBeenCalled();
+      expect(mocks.play).toHaveBeenCalledOnce();
+      expect(mocks.status.playIndex).toBe(0);
+      expect(mocks.status.state).toBe("playing");
+    },
+  );
+
+  it.each(["暂停", "停止", "切歌"])(
+    "流媒体重播取址期间手动%s，迟到响应不恢复旧播放",
+    async (action) => {
+      mocks.media.track = {
+        ...mocks.tracks[0]!,
+        source: "streaming",
+        serverId: "server",
+        originalId: "song",
+      };
+      mocks.status.repeatMode = "one";
+      mocks.status.state = "stopped";
+      let finish!: (value: unknown) => void;
+      mocks.resolve.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const { handleEvent } = await import("./events");
+      const player = await import("./index");
+      const pending = handleEvent({ type: "ended" });
+      if (action === "暂停") await player.pause();
+      else if (action === "停止") await player.stop();
+      else await player.nextTrack();
+      mocks.load.mockClear();
+      mocks.play.mockClear();
+      finish({ source: "streaming://server/song", provider: "streaming", fromCache: false });
+      await pending;
+      expect(mocks.play).not.toHaveBeenCalled();
+      expect(mocks.status.state).toBe(
+        action === "暂停" ? "paused" : action === "停止" ? "stopped" : "playing",
+      );
+      expect(mocks.media.track?.id).toBe(action === "切歌" ? "second" : "first");
+      if (action !== "暂停") expect(mocks.load).not.toHaveBeenCalled();
+    },
+  );
+
+  it("流媒体重播加载失败不调用播放，重复结束通知不重复加载", async () => {
+    mocks.media.track = {
+      ...mocks.tracks[0]!,
+      source: "streaming",
+      serverId: "server",
+      originalId: "song",
+    };
+    mocks.status.repeatMode = "one";
+    let finish!: (value: unknown) => void;
+    mocks.load.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { handleEvent } = await import("./events");
+    const pending = handleEvent({ type: "ended" });
+    await vi.advanceTimersByTimeAsync(0);
+    await handleEvent({ type: "ended" });
+    expect(mocks.load).toHaveBeenCalledOnce();
+    finish({ success: false, error: ErrorCode.NETWORK_ERROR });
+    await pending;
+    expect(mocks.play).not.toHaveBeenCalled();
+    expect(mocks.status.state).toBe("idle");
   });
   it.each([ErrorCode.NETEASE_UNAVAILABLE, ErrorCode.NO_PLUGIN_AVAILABLE, ErrorCode.FILE_NOT_FOUND])(
     "%s 遇到迟到的停止通知仍自动播放下一首",

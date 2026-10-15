@@ -106,7 +106,10 @@ export interface EnqueueResult {
 }
 
 /** 下载记录中的歌曲身份；流媒体额外区分服务器 */
-export type DownloadTrackIdentity = Pick<Track, "source" | "id" | "serverId" | "originalId">;
+export type DownloadTrackIdentity = Pick<
+  Track,
+  "source" | "id" | "serverId" | "originalId" | "serverRevision"
+>;
 
 /** 渲染端下载 IPC 入口 */
 export interface DownloadApi {

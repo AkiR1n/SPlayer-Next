@@ -27,7 +27,7 @@ import {
   prevTrack,
   recoverFromSourceFailure,
   refreshDevices,
-  seek,
+  restartCurrentTrack,
   setRepeatMode,
   setShuffleMode,
   trySmartTransition,
@@ -49,10 +49,8 @@ const finishCurrentTrack = async (): Promise<void> => {
     playStats.onTrackEnded(repeatOne && !stopByTimer);
     // 定时关闭"等本曲结束"模式
     if (stopByTimer) return;
-    // 单曲循环：seek 回开头继续播放
     if (repeatOne) {
-      await seek(0, true);
-      await play();
+      await restartCurrentTrack();
     } else {
       await nextTrack();
     }

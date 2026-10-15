@@ -112,16 +112,31 @@ const isArtistLinkable = (item: Track, artist: Artist): boolean => {
   return item.source === "local" || !!artist.id;
 };
 
-/** 跳转到歌手页 */
+/**
+ * 跳转到歌曲所属服务器的歌手页
+ * @param item - 当前歌曲
+ * @param artist - 歌手信息
+ */
 const goArtist = (item: Track, artist: Artist): void => {
   if (!isArtistLinkable(item, artist)) return;
-  navigateToArtist(artist.name, { source: item.source, artistId: artist.id });
+  navigateToArtist(artist.name, {
+    source: item.source,
+    artistId: artist.id,
+    serverId: item.serverId,
+  });
 };
 
-/** 跳转到专辑页 */
+/**
+ * 跳转到歌曲所属服务器的专辑页
+ * @param item - 当前歌曲
+ */
 const goAlbum = (item: Track): void => {
   if (!isAlbumLinkable(item)) return;
-  navigateToAlbum(item.album?.name, { source: item.source, albumId: item.album?.id });
+  navigateToAlbum(item.album?.name, {
+    source: item.source,
+    albumId: item.album?.id,
+    serverId: item.serverId,
+  });
 };
 
 /** 排序字段 */
@@ -700,6 +715,7 @@ defineExpose({
                   circle
                   :size="28"
                   :icon-size="20"
+                  :disabled="!fav.isSupported(item)"
                   @click="fav.toggle(item)"
                 >
                   <template #icon>

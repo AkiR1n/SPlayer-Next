@@ -95,6 +95,7 @@ export const listCompletedPaths = (track: DownloadTrackIdentity): string[] => {
          AND (? != 'streaming' OR (
            json_extract(track_json, '$.serverId') = ?
            AND json_extract(track_json, '$.originalId') = ?
+           AND coalesce(json_extract(track_json, '$.serverRevision'), 0) = ?
          ))
        ORDER BY finished_at DESC, created_at DESC, task_id DESC`,
     )
@@ -104,6 +105,7 @@ export const listCompletedPaths = (track: DownloadTrackIdentity): string[] => {
       track.source,
       track.serverId ?? null,
       track.originalId ?? null,
+      track.serverRevision ?? 0,
     ) as {
     file_path: string;
   }[];

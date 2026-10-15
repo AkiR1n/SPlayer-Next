@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { parseStreamingSource } from "@shared/utils/streamingSource";
+import { resolveStreamingMediaSource } from "@main/services/streaming/mediaSource";
 import fsp, { type FileHandle } from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -257,6 +259,18 @@ const runDownload = async (
 
   try {
     await fsp.mkdir(cacheDir, { recursive: true });
+    if (source === "streaming") {
+      const identity = parseStreamingSource(streamUrl);
+      streamUrl = (
+        await resolveStreamingMediaSource(
+          identity.serverId,
+          identity.trackId,
+          crypto.randomUUID(),
+          controller.signal,
+          identity.serverRevision,
+        )
+      ).url;
+    }
     const response = await fetch(streamUrl, { signal: controller.signal });
     if (!response.ok || !response.body) {
       songCacheLog.warn(`[fetch] fail key=${cacheKey} status=${response.status}`);

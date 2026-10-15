@@ -48,7 +48,7 @@ const visualizerMounted = ref(false);
 const initialLyricTimeMs = ref(0);
 let visualizerMountFrame = 0;
 
-/** 加载中的歌曲使用队列当前项兜底，避免全屏播放器出现空白。 */
+/** 加载中的歌曲使用队列当前项兜底，避免全屏播放器出现空白 */
 const displayTrack = computed(() => media.track ?? status.currentTrack);
 const hasLyric = computed(() => media.parsedLyric.length > 0 || media.lyricLoading);
 const hasTrack = computed(() => !!displayTrack.value);
@@ -385,7 +385,7 @@ const showComments = (): void => {
               variant="ghost"
               size="large"
               circle
-              :disabled="!hasTrack"
+              :disabled="!hasTrack || !fav.isSupported(displayTrack)"
               @click="fav.toggle(displayTrack)"
             >
               <template #icon>
