@@ -408,6 +408,7 @@
     }
   },
   "streaming": {
+    "favoritesOnly": "仅看收藏",
     "hint": "连接到媒体源",
     "hintDetail": "添加个人流媒体服务器，配置内容全程加密",
     "errorCode": {
@@ -423,6 +424,7 @@
       "playlists": "歌单"
     },
     "empty": {
+      "noFavorites": "当前服务器暂无收藏歌曲",
       "noServer": "尚未配置流媒体服务器",
       "addHint": "点击右上角添加一个开始使用",
       "goToSettings": "前往设置添加",
@@ -2308,6 +2310,7 @@
     "last90Days": "近 90 天"
   },
   "errors": {
+    "PERMISSION_DENIED": "当前账号没有执行此操作的权限",
     "dialogTitle": "出错了",
     "deviceHint": "未检测到可用的音频输出设备，请连接耳机或音箱后重试。",
     "DEVICE_NOT_FOUND": "未找到音频输出设备",

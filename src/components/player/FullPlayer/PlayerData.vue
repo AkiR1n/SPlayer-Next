@@ -44,15 +44,24 @@ const lyricSourceOptions = computed<SSelectOption[]>(() => [
   { value: "self", label: t("settings.lyricSourcePreference.self") },
 ]);
 
-/** 生成歌手详情页跳转目标 */
+/**
+ * 生成歌手详情页跳转目标
+ * @param artist - 当前歌曲的歌手
+ * @returns 携带服务器身份的详情页目标
+ */
 const artistTarget = (artist: Artist): ResourceNavigationTarget => ({
   type: "artist",
   source: displayTrack.value?.source,
+  serverId: displayTrack.value?.serverId,
   id: artist.id,
   name: artist.name,
 });
 
-/** 歌手是否可跳转 */
+/**
+ * 判断歌手是否具有可跳转的详情页
+ * @param artist - 当前歌曲的歌手
+ * @returns 是否支持跳转
+ */
 const isArtistLinkable = (artist: Artist): boolean => canNavigateToResource(artistTarget(artist));
 
 /** 当前专辑详情页跳转目标 */
@@ -62,6 +71,7 @@ const albumTarget = computed<ResourceNavigationTarget | null>(() => {
   return {
     type: "album",
     source: track.source,
+    serverId: track.serverId,
     id: track.album.id,
     name: track.album.name,
   };
@@ -72,7 +82,10 @@ const isAlbumLinkable = computed(() =>
   albumTarget.value ? canNavigateToResource(albumTarget.value) : false,
 );
 
-/** 跳转成功后收起全屏播放器 */
+/**
+ * 跳转详情页并收起全屏播放器
+ * @param target - 详情页目标
+ */
 const goToResource = (target: ResourceNavigationTarget | null): void => {
   if (target && navigateToResource(target)) status.isPlayerExpanded = false;
 };
@@ -116,6 +129,7 @@ const playbackSourceTarget = computed<ResourceNavigationTarget | null>(() => {
   return {
     type: context.originType,
     source: context.provider,
+    serverId: displayTrack.value?.serverId,
     id: context.originId,
     name,
   };

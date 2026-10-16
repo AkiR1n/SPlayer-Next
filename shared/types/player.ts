@@ -32,6 +32,7 @@ export interface PlaybackContext {
 
 /** 歌手 */
 export interface Artist {
+  serverId?: string;
   id?: string;
   name: string;
   avatar?: string;
@@ -41,6 +42,7 @@ export interface Artist {
 
 /** 专辑 */
 export interface Album {
+  serverId?: string;
   id?: string;
   name: string;
   /** 封面 URL */
@@ -55,6 +57,7 @@ export interface Album {
 
 /** 歌单 */
 export interface Playlist {
+  serverId?: string;
   id?: string;
   name: string;
   cover?: string;
@@ -84,6 +87,8 @@ export type TrackFee = 0 | 1 | 4 | 8;
 
 /** 歌曲信息 */
 export interface Track {
+  /** 服务端权威收藏状态；缺失表示尚未读取 */
+  favorite?: boolean;
   /** 平台 id */
   id: string;
   /** 平台二级 id */
@@ -112,6 +117,8 @@ export interface Track {
   serverId?: string;
   /** 流媒体服务器原生 ID（仅 source==='streaming'） */
   originalId?: string;
+  /** 流媒体账号或地址变更后的媒体身份代次 */
+  serverRevision?: number;
   /** 标题 */
   title: string;
   /** 注释/副标题 */

@@ -60,6 +60,7 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
                 circle
                 :size="24"
                 :icon-size="16"
+                :disabled="!fav.isSupported(media.track)"
                 @click="fav.toggle(media.track)"
               >
                 <template #icon>
@@ -141,6 +142,7 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
               circle
               :size="28"
               :icon-size="18"
+              :disabled="!fav.isSupported(media.track)"
               @click="fav.toggle(media.track)"
             >
               <template #icon>

@@ -109,22 +109,30 @@ const isArtistLinkable = (item: Track, artist: Artist): boolean => {
 };
 
 /**
- * 打开曲目所属平台的歌手详情
+ * 打开曲目所属来源的歌手详情
  * @param item - 列表中的曲目
  * @param artist - 要打开的歌手
  */
 const goArtist = (item: Track, artist: Artist): void => {
   if (!isArtistLinkable(item, artist)) return;
-  navigateToArtist(artist.name, { source: item.source, artistId: artist.id });
+  navigateToArtist(artist.name, {
+    source: item.source,
+    artistId: artist.id,
+    serverId: item.serverId,
+  });
 };
 
 /**
- * 打开曲目所属平台的专辑详情
+ * 打开曲目所属来源的专辑详情
  * @param item - 列表中的曲目
  */
 const goAlbum = (item: Track): void => {
   if (!isAlbumLinkable(item)) return;
-  navigateToAlbum(item.album?.name, { source: item.source, albumId: item.album?.id });
+  navigateToAlbum(item.album?.name, {
+    source: item.source,
+    albumId: item.album?.id,
+    serverId: item.serverId,
+  });
 };
 
 /** 排序字段 */
@@ -703,6 +711,7 @@ defineExpose({
                   circle
                   :size="28"
                   :icon-size="20"
+                  :disabled="!fav.isSupported(item)"
                   @click="fav.toggle(item)"
                 >
                   <template #icon>

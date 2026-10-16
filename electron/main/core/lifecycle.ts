@@ -5,6 +5,7 @@ import { pluginRegistry } from "@main/plugins/registry";
 import { dispose as disposePlaybackBridge } from "@main/plugins/playbackBridge";
 import { stopServer } from "@main/server";
 import { stopMcpServer } from "@main/services/mcp/http";
+import { stopStreamingPlayback } from "@main/services/streaming/playback";
 import { disposeUpdater } from "@main/services/updater";
 import { coreLog } from "@main/utils/logger";
 
@@ -13,6 +14,14 @@ const cleanupTasks: Array<[string, () => void | Promise<void>]> = [
   ["MCP", stopMcpServer],
   ["插件", () => pluginRegistry.shutdown()],
   ["播放事件桥", disposePlaybackBridge],
+  [
+    "流媒体播放会话",
+    () =>
+      Promise.race([
+        stopStreamingPlayback(),
+        new Promise<void>((resolve) => setTimeout(resolve, 2000)),
+      ]),
+  ],
   ["系统媒体", shutdownMedia],
   ["更新服务", disposeUpdater],
   ["数据库", closeDatabase],

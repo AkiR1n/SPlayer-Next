@@ -113,6 +113,7 @@ const isArtistLinkable = (artist: Artist): boolean => {
                     navigateToArtist(artist.name, {
                       source: media.track?.source,
                       artistId: artist.id,
+                      serverId: media.track?.serverId,
                     })
                   "
                 >
