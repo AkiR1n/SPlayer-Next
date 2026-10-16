@@ -5,7 +5,13 @@ import { playerControl } from "@main/services/playerControl";
 import * as nowPlaying from "@main/services/nowPlaying";
 import { getAlbumList, getArtistList, getRandomTracks, getTrackCount } from "@main/database";
 import { createMcpEndpoint as createHttpEndpoint, type McpEndpoint } from "./endpoint";
-import { searchOnline, searchLibrary, trackSchema, queueQuerySchema } from "@main/services/music";
+import {
+  searchOnline,
+  searchLibrary,
+  trackSchema,
+  queueQuerySchema,
+  onlineSearchSchema,
+} from "@main/services/music";
 
 const jsonContent = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value) }],
@@ -25,7 +31,8 @@ const createServer = (): McpServer => {
     "get_playback_status",
     {
       title: "获取播放状态",
-      description: "获取 SPlayer 当前播放状态、进度、时长和音量。时间单位为毫秒",
+      description:
+        "获取 SPlayer 当前播放状态、队列索引、进度、时长和音量。currentIndex 从 0 开始，无当前队列项时为 -1。时间单位为毫秒",
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
     () => jsonContent(playerControl.getStatus()),
@@ -46,7 +53,7 @@ const createServer = (): McpServer => {
     {
       title: "读取播放队列",
       description:
-        "按当前播放顺序读取队列，返回 Track 数组、总数、当前曲目在整个队列中的索引和偏移。offset 默认 0，limit 默认 50、最多 100；空队列的当前索引为 -1。",
+        "按当前播放顺序读取队列，返回 Track 数组、总数、当前曲目在整个队列中的索引和偏移。offset 默认 0，limit 默认 50、最多 100；无当前队列项时索引为 -1。",
       inputSchema: queueQuerySchema.shape,
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
@@ -177,13 +184,8 @@ const createServer = (): McpServer => {
     "search_online_songs",
     {
       title: "搜索在线歌曲",
-      description: "按关键词搜索网易云音乐、QQ 音乐或KG音乐，返回可直接传给 play_track 的曲目",
-      inputSchema: {
-        platform: z.enum(["netease", "qqmusic", "kugou"]),
-        query: z.string().trim().min(1).max(200),
-        page: z.number().int().min(1).max(100).default(1),
-        limit: z.number().int().min(1).max(50).default(20),
-      },
+      description: "按关键词搜索在线曲目，返回可直接传给 play_track 的曲目",
+      inputSchema: onlineSearchSchema.shape,
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
     async ({ platform, query, page, limit }) =>

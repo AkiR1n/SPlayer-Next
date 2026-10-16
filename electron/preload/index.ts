@@ -175,6 +175,11 @@ const api = {
     // 同步播放模式到主进程（供托盘菜单显示）
     syncPlayMode: (repeatMode: string, shuffleMode: string) =>
       ipcRenderer.send("player:syncPlayMode", repeatMode, shuffleMode),
+    /**
+     * 同步主窗口当前队列索引
+     * @param index - 当前队列索引，无当前队列项时为 -1
+     */
+    syncQueueIndex: (index: number) => ipcRenderer.send("player:syncQueueIndex", index),
     // 同步当前歌曲喜欢状态到主进程（供托盘菜单显示）
     syncLikeState: (liked: boolean) => ipcRenderer.send("player:syncLikeState", liked),
     // 广播播放控制事件到所有渲染进程

@@ -159,7 +159,7 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
       window.api.player.respondQueue(requestId, {
         tracks: entries.slice(offset, offset + limit).map((item) => toRaw(item.track)),
         total: entries.length,
-        currentIndex: entries.length ? status.playIndex : -1,
+        currentIndex: status.currentIndex,
         offset,
       });
       break;

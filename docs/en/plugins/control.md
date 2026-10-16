@@ -305,14 +305,15 @@ Reads playback status. No parameters.
 
 **Returns:** `Promise<PlaybackStatusSnapshot>`.
 
-| Field                       | Type              | Description                                          |
-| --------------------------- | ----------------- | ---------------------------------------------------- |
-| `state`                     | `PlayerState`     | `idle`, `loading`, `playing`, `paused`, or `stopped` |
-| `positionMs` / `durationMs` | `number`          | Position / duration in milliseconds                  |
-| `volume`                    | `number`          | Volume, 0–1                                          |
-| `isFinished`                | `boolean`         | Whether playback has finished                        |
-| `repeat`                    | `"list" \| "one"` | Repeat mode                                          |
-| `shuffle`                   | `"on" \| "off"`   | Shuffle mode                                         |
+| Field                       | Type              | Description                                                                     |
+| --------------------------- | ----------------- | ------------------------------------------------------------------------------- |
+| `state`                     | `PlayerState`     | `idle`, `loading`, `playing`, `paused`, or `stopped`                            |
+| `positionMs` / `durationMs` | `number`          | Position / duration in milliseconds                                             |
+| `volume`                    | `number`          | Volume, 0–1                                                                     |
+| `isFinished`                | `boolean`         | Whether playback has finished                                                   |
+| `currentIndex`              | `number`          | Zero-based index in the entire queue; -1 when no queue item is selected. API 5+ |
+| `repeat`                    | `"list" \| "one"` | Repeat mode                                                                     |
+| `shuffle`                   | `"on" \| "off"`   | Shuffle mode                                                                    |
 
 ```js
 const status = await splayer.player.getStatus();
@@ -336,15 +337,19 @@ Read the queue in its current playback order, including the shuffled order when 
 
 **Returns:** `Promise<PlaybackQueueSnapshot>`.
 
-| Field          | Type      | Description                                                                        |
-| -------------- | --------- | ---------------------------------------------------------------------------------- |
-| `tracks`       | `Track[]` | Tracks in this page; see [Track](/en/types#track)                                  |
-| `total`        | `number`  | Total tracks in the queue                                                          |
-| `currentIndex` | `number`  | Zero-based index of the current track in the entire queue; `-1` for an empty queue |
-| `offset`       | `number`  | Queue offset used for this request                                                 |
+| Field          | Type      | Description                                                                                    |
+| -------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `tracks`       | `Track[]` | Tracks in this page; see [Track](/en/types#track)                                              |
+| `total`        | `number`  | Total tracks in the queue                                                                      |
+| `currentIndex` | `number`  | Zero-based index of the current track in the entire queue; `-1` when no queue item is selected |
+| `offset`       | `number`  | Queue offset used for this request                                                             |
 
 ```js
-const queue = await splayer.player.getQueue({ offset: 0, limit: 20 });
+const status = await splayer.player.getStatus();
+const queue = await splayer.player.getQueue({
+  offset: Math.max(0, status.currentIndex - 10),
+  limit: 21,
+});
 splayer.log.info(queue.tracks, queue.currentIndex, queue.total);
 ```
 

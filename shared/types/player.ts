@@ -385,6 +385,11 @@ export interface PlayerApi {
   getSelectedDeviceName: () => Promise<IpcResponse<string | null>>;
   /** 同步播放模式到托盘 */
   syncPlayMode: (repeatMode: string, shuffleMode: string) => void;
+  /**
+   * 同步主窗口当前队列索引
+   * @param index - 当前队列索引，无当前队列项时为 -1
+   */
+  syncQueueIndex: (index: number) => void;
   /** 同步当前歌曲喜欢状态到托盘 */
   syncLikeState: (liked: boolean) => void;
   /** 广播播放控制事件 */

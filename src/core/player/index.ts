@@ -1346,6 +1346,7 @@ export const moveInQueue = (fromIndex: number, toIndex: number): void => {
 };
 
 let unsubscribe: (() => void) | null = null;
+let stopQueueIndexSync: (() => void) | null = null;
 let initialized = false;
 
 /** 初始化播放器 */
@@ -1360,6 +1361,11 @@ export const initPlayer = async (): Promise<void> => {
   await useStreamingStore().init();
   await queue.restoreQueue();
   const status = useStatusStore();
+  stopQueueIndexSync = watch(
+    () => status.currentIndex,
+    (index) => window.api.player.syncQueueIndex(index),
+    { immediate: true },
+  );
   // 独立来源曲目恢复前等待所属插件，其余插件继续在后台启动。
   await usePluginsStore().load(
     status.currentTrack?.source === "plugin" ? status.currentTrack.plugin?.pluginId : undefined,
@@ -1476,6 +1482,9 @@ export const restoreLastTrack = async (): Promise<void> => {
 /** 清理事件订阅 */
 export const disposePlayer = (): void => {
   disposeNextTrackPreload();
+  stopQueueIndexSync?.();
+  stopQueueIndexSync = null;
+  window.api.player.syncQueueIndex(-1);
   if (unsubscribe) {
     unsubscribe();
     unsubscribe = null;

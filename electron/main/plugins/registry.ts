@@ -36,7 +36,7 @@ import { pluginsDir } from "@main/utils/paths";
 import { pluginHost, type PluginHostCallbacks, type PluginLoadSpec } from "./host-process";
 import { loadScript } from "./loader";
 import { dispatchHostCall } from "./host";
-import { pluginStorageDrop } from "./storage";
+import { pluginStorageDrop, pluginStorageRelease, shutdownPluginStorage } from "./storage";
 import { fetchScript } from "./net";
 
 const pluginsRoot = (): string => pluginsDir;
@@ -486,6 +486,7 @@ class PluginRegistry extends EventEmitter {
     const rt = this.runtimes.get(id);
     if (!rt) return;
     await this.stop(rt);
+    await pluginStorageDrop(id);
     this.runtimes.delete(id);
 
     const stored = readStored();
@@ -497,7 +498,6 @@ class PluginRegistry extends EventEmitter {
     } catch {
       /* ignore */
     }
-    pluginStorageDrop(id);
     const permissions = { ...store.get("plugins.permissions") };
     delete permissions[id];
     store.set("plugins.permissions", permissions);
@@ -713,6 +713,7 @@ class PluginRegistry extends EventEmitter {
     pluginHost.unloadPlugin(rt.manifest.id);
     this.rejectAllPending(rt, "plugin stopped", PluginErrorCodes.NOT_READY);
     this.setStatus(rt, { state: "unloaded" });
+    await pluginStorageRelease(rt.manifest.id);
   }
 
   /** 失败并清空某插件的全部在途调用 */
@@ -841,7 +842,9 @@ class PluginRegistry extends EventEmitter {
       clearTimeout(this.hostRestartTimer);
       this.hostRestartTimer = null;
     }
+    for (const rt of this.runtimes.values()) rt.hostSession?.abort();
     pluginHost.shutdown();
+    await shutdownPluginStorage();
   }
 }
 

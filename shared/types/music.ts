@@ -7,6 +7,8 @@ export interface PlaybackStatusSnapshot {
   durationMs: number;
   volume: number;
   isFinished: boolean;
+  /** 当前曲目在整个队列中的索引，无当前队列项时为 -1 */
+  currentIndex: number;
   repeat: RepeatMode;
   shuffle: ShuffleMode;
 }
@@ -21,7 +23,7 @@ export interface PlaybackQueueOptions {
 export interface PlaybackQueueSnapshot {
   tracks: Track[];
   total: number;
-  /** 当前曲目在整个队列中的索引，空队列为 -1 */
+  /** 当前曲目在整个队列中的索引，无当前队列项时为 -1 */
   currentIndex: number;
   offset: number;
 }

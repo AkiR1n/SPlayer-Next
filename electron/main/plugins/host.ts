@@ -93,18 +93,18 @@ export const dispatchHostCall = async (
         data = await hostRequest(args[0] as string, (args[1] ?? {}) as HostRequestOptions);
         break;
       case "storage.get":
-        data = pluginStorageGet(pluginId, args[0] as string);
+        data = await pluginStorageGet(pluginId, args[0] as string);
         break;
       case "storage.set":
-        pluginStorageSet(pluginId, args[0] as string, args[1]);
+        await pluginStorageSet(pluginId, args[0] as string, args[1]);
         data = undefined;
         break;
       case "storage.remove":
-        pluginStorageRemove(pluginId, args[0] as string);
+        await pluginStorageRemove(pluginId, args[0] as string);
         data = undefined;
         break;
       case "storage.keys":
-        data = pluginStorageKeys(pluginId);
+        data = await pluginStorageKeys(pluginId);
         break;
       case "player.play":
         playerControl.play();

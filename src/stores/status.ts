@@ -108,6 +108,8 @@ export const useStatusStore = defineStore(
      * media.track 在 load 成功后才更新，用于组件显示已加载完成的歌曲信息
      */
     const currentTrack = computed(() => queue.getTrack(playIndex.value));
+    /** 对外查询使用的有效队列索引，无当前队列项时为 -1 */
+    const currentIndex = computed(() => (currentTrack.value ? playIndex.value : -1));
     /** 当前队列项对应的播放来源上下文 */
     const currentPlaybackContext = computed(() => queue.getQueueItem(playIndex.value)?.context);
 
@@ -157,6 +159,7 @@ export const useStatusStore = defineStore(
       sortField,
       sortOrder,
       currentTrack,
+      currentIndex,
       currentPlaybackContext,
       showComments,
     };

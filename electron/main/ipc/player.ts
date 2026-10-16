@@ -18,6 +18,7 @@ import * as lastfm from "@main/services/lastfm";
 import * as neteaseScrobble from "@main/services/neteaseScrobble";
 import { fetchBytes } from "@main/utils/fetchBytes";
 import { getPlayer, resetPlayer, onPlayerCreated, onPlayerReset } from "@main/services/engine";
+import { playerControl } from "@main/services/playerControl";
 import {
   cancelPendingReinit,
   setPauseOnDeviceSwitch,
@@ -869,6 +870,13 @@ export const registerPlayerIpc = (): void => {
     } catch (error) {
       return fail(ErrorCode.UNKNOWN, error);
     }
+  });
+
+  // 队列由主窗口维护，仅同步索引以供外部查询。
+  ipcMain.on("player:syncQueueIndex", (event, index: number) => {
+    if (event.sender !== getMainWindow()?.webContents) return;
+    if (!Number.isSafeInteger(index) || index < -1) return;
+    playerControl.syncQueueIndex(index);
   });
 
   // 渲染进程同步播放模式到托盘

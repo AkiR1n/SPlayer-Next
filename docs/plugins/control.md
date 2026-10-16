@@ -305,14 +305,15 @@ await splayer.player.setPlayMode({ repeat: "list", shuffle: "on" });
 
 **返回：** `Promise<PlaybackStatusSnapshot>`。
 
-| 字段                        | 类型              | 说明                                                |
-| --------------------------- | ----------------- | --------------------------------------------------- |
-| `state`                     | `PlayerState`     | `idle`、`loading`、`playing`、`paused` 或 `stopped` |
-| `positionMs` / `durationMs` | `number`          | 当前进度 / 总时长，毫秒                             |
-| `volume`                    | `number`          | 音量，0–1                                           |
-| `isFinished`                | `boolean`         | 是否播放结束                                        |
-| `repeat`                    | `"list" \| "one"` | 循环模式                                            |
-| `shuffle`                   | `"on" \| "off"`   | 随机模式                                            |
+| 字段                        | 类型              | 说明                                                                     |
+| --------------------------- | ----------------- | ------------------------------------------------------------------------ |
+| `state`                     | `PlayerState`     | `idle`、`loading`、`playing`、`paused` 或 `stopped`                      |
+| `positionMs` / `durationMs` | `number`          | 当前进度 / 总时长，毫秒                                                  |
+| `volume`                    | `number`          | 音量，0–1                                                                |
+| `isFinished`                | `boolean`         | 是否播放结束                                                             |
+| `currentIndex`              | `number`          | 当前曲目在整个队列中的索引，从 0 开始；无当前队列项时为 -1。API 5 起支持 |
+| `repeat`                    | `"list" \| "one"` | 循环模式                                                                 |
+| `shuffle`                   | `"on" \| "off"`   | 随机模式                                                                 |
 
 ```js
 const status = await splayer.player.getStatus();
@@ -336,15 +337,19 @@ splayer.log.info(status.state, status.positionMs);
 
 **返回：** `Promise<PlaybackQueueSnapshot>`。
 
-| 字段           | 类型      | 说明                                                 |
-| -------------- | --------- | ---------------------------------------------------- |
-| `tracks`       | `Track[]` | 当前页曲目，结构见 [Track](/types#track)             |
-| `total`        | `number`  | 整个队列的曲目数                                     |
-| `currentIndex` | `number`  | 当前曲目在整个队列中的索引，从 0 开始；空队列为 `-1` |
-| `offset`       | `number`  | 本次查询的队列偏移                                   |
+| 字段           | 类型      | 说明                                                         |
+| -------------- | --------- | ------------------------------------------------------------ |
+| `tracks`       | `Track[]` | 当前页曲目，结构见 [Track](/types#track)                     |
+| `total`        | `number`  | 整个队列的曲目数                                             |
+| `currentIndex` | `number`  | 当前曲目在整个队列中的索引，从 0 开始；无当前队列项时为 `-1` |
+| `offset`       | `number`  | 本次查询的队列偏移                                           |
 
 ```js
-const queue = await splayer.player.getQueue({ offset: 0, limit: 20 });
+const status = await splayer.player.getStatus();
+const queue = await splayer.player.getQueue({
+  offset: Math.max(0, status.currentIndex - 10),
+  limit: 21,
+});
 splayer.log.info(queue.tracks, queue.currentIndex, queue.total);
 ```
 

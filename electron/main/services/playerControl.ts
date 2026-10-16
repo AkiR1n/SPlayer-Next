@@ -21,6 +21,8 @@ import type {
 } from "@shared/types/music";
 import { getTrayPlayMode } from "@main/services/tray";
 
+let currentIndex = -1;
+
 /**
  * 跳转（毫秒）
  *
@@ -68,8 +70,15 @@ const getQueue = async (options: PlaybackQueueOptions = {}): Promise<PlaybackQue
 export const playerControl = {
   getQueue,
   /**
+   * 保存主窗口同步的队列索引，供各外部入口共用
+   * @param index - 当前队列索引，无当前队列项时为 -1
+   */
+  syncQueueIndex: (index: number): void => {
+    currentIndex = index;
+  },
+  /**
    * 读取播放状态并统一时间单位为毫秒
-   * @returns 播放状态、音量与播放模式
+   * @returns 播放状态、当前队列索引、音量与播放模式
    */
   getStatus: (): PlaybackStatusSnapshot => {
     const status = getPlayer().getStatus();
@@ -79,6 +88,7 @@ export const playerControl = {
       durationMs: toMs(status.duration),
       volume: status.volume,
       isFinished: status.isFinished,
+      currentIndex,
       ...getTrayPlayMode(),
     };
   },
