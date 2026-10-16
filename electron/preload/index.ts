@@ -1,10 +1,13 @@
 import os from "os";
+import type { PlaybackQueueSnapshot } from "@shared/types/music";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { ExternalApiStatus, McpStatus, TaskbarLyricSettings } from "@shared/types/settings";
 import type {
   PluginInfo,
+  PluginGrant,
   PluginResolveUrlArgs,
+  PluginSearchArgs,
   PluginInvokeMenuArgs,
   PluginMatchLyricArgs,
   PluginMatchCoverArgs,
@@ -176,10 +179,22 @@ const api = {
     // 同步播放模式到主进程（供托盘菜单显示）
     syncPlayMode: (repeatMode: string, shuffleMode: string) =>
       ipcRenderer.send("player:syncPlayMode", repeatMode, shuffleMode),
+    /**
+     * 同步主窗口当前队列索引
+     * @param index - 当前队列索引，无当前队列项时为 -1
+     */
+    syncQueueIndex: (index: number) => ipcRenderer.send("player:syncQueueIndex", index),
     // 同步当前歌曲喜欢状态到主进程（供托盘菜单显示）
     syncLikeState: (liked: boolean) => ipcRenderer.send("player:syncLikeState", liked),
     // 广播播放控制事件到所有渲染进程
     dispatch: (type: string) => ipcRenderer.send("player:dispatch", type),
+    /**
+     * 回传主窗口的队列查询结果
+     * @param requestId - 队列查询标识
+     * @param snapshot - 队列分页及当前播放索引
+     */
+    respondQueue: (requestId: string, snapshot: PlaybackQueueSnapshot) =>
+      ipcRenderer.send(`player:queue-response:${requestId}`, snapshot),
     // 订阅主进程推送的播放事件
     onEvent: (callback: (event: unknown) => void) => subscribe("player:event", callback),
   },
@@ -410,8 +425,21 @@ const api = {
       subscribe<TaskbarLyricSettings>("taskbarLyric:configChange", callback),
   },
   plugins: {
-    // 列出所有已安装插件
-    list: () => ipcRenderer.invoke("plugin:list"),
+    /**
+     * 保存用户对插件权限的选择
+     * @param id - 插件标识
+     * @param grant - 权限名称
+     * @param enabled - 是否允许
+     * @returns 权限保存结果
+     */
+    setPermission: (id: string, grant: PluginGrant, enabled: boolean) =>
+      ipcRenderer.invoke("plugin:setPermission", id, grant, enabled),
+    /**
+     * 读取插件列表并按需等待指定插件初始化
+     * @param waitForPluginId - 需要等待首次加载的插件标识
+     * @returns 插件状态列表
+     */
+    list: (waitForPluginId) => ipcRenderer.invoke("plugin:list", waitForPluginId),
     // 从指定路径导入插件
     install: (filePath: string) => ipcRenderer.invoke("plugin:install", filePath),
     // 弹出原生文件选择框导入插件
@@ -423,13 +451,19 @@ const api = {
     // 启用/禁用
     setEnabled: (id: string, enabled: boolean) =>
       ipcRenderer.invoke("plugin:setEnabled", id, enabled),
-    // 写入控制类插件配置项
+    // 写入插件配置项
     setSetting: (id: string, key: string, value: unknown) =>
       ipcRenderer.invoke("plugin:setSetting", id, key, value),
     // 手动检查更新
     checkUpdate: (id: string) => ipcRenderer.invoke("plugin:checkUpdate", id),
     // 一键更新
     applyUpdate: (id: string) => ipcRenderer.invoke("plugin:applyUpdate", id),
+    /**
+     * 请求主进程搜索插件独立来源
+     * @param args - 插件、来源、关键词与分页参数
+     * @returns 可播放曲目及分页信息
+     */
+    search: (args: PluginSearchArgs) => ipcRenderer.invoke("plugin:search", args),
     // 解析播放 URL
     resolveUrl: (args: PluginResolveUrlArgs) => ipcRenderer.invoke("plugin:resolveUrl", args),
     // 触发插件自定义菜单项

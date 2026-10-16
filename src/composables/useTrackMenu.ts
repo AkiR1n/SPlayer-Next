@@ -78,7 +78,7 @@ export const useTrackMenu = (
     const isCue = !!track.value?.cuePath;
     const showCloudRemove = isCloudView && track.value?.cloud === true;
     const canAddToPlaylist = source === "local" || source === "netease";
-    const isOnline = source !== "local" && source !== "streaming";
+    const isOnline = !!getTrackShareUrl(track.value);
     const base: DropdownMenuItem[] = [
       { key: "play", label: t("songList.context.play"), icon: markRaw(IconPlay), show: showPlay },
       {
@@ -125,7 +125,11 @@ export const useTrackMenu = (
         label: t("songList.context.download"),
         icon: markRaw(IconDownload),
         separator: true,
-        show: !isLocal && !!options.onDownload && settings.system.download.enabled,
+        show:
+          !isLocal &&
+          source !== "plugin" &&
+          !!options.onDownload &&
+          settings.system.download.enabled,
         children: buildDownloadQualityItems(t("download.qualityDefault"), "download:"),
       },
       {
@@ -203,6 +207,10 @@ export const useTrackMenu = (
     return [...base, ...pluginGroups];
   });
 
+  /**
+   * 执行所选歌曲菜单操作
+   * @param key - 菜单项标识
+   */
   const handleSelect = async (key: string): Promise<void> => {
     const current = track.value;
     if (!current) return;
@@ -274,7 +282,15 @@ export const useTrackMenu = (
         options.onRemoveFromCloud?.(current);
         break;
       case "searchSame":
-        router.push({ path: "/search", query: { q: current.title } });
+        router.push({
+          path: "/search",
+          query: {
+            q: current.title,
+            ...(current.source === "plugin"
+              ? { plugin: current.plugin?.pluginId, source: current.plugin?.source }
+              : {}),
+          },
+        });
         break;
       case "comments":
         status.showComments(current);

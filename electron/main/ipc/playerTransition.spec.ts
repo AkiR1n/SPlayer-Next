@@ -46,6 +46,9 @@ vi.mock("@main/services/engine", () => {
     resetPlayer: () => mocks.reset.forEach((callback) => callback()),
   };
 });
+vi.mock("@main/services/playerControl", () => ({
+  playerControl: { syncQueueIndex: vi.fn() },
+}));
 vi.mock("@main/services/playerPreload", () => ({
   prepareNextTrack: vi.fn(),
   cancelPreparedTrack: mocks.cancel,

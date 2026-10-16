@@ -611,6 +611,7 @@ describe("列表播放起点", () => {
           load: mocks.load,
           stop: vi.fn().mockResolvedValue({ success: true }),
           syncPlayMode: vi.fn(),
+          syncQueueIndex: vi.fn(),
         },
       },
     });

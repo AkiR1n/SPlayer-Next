@@ -22,10 +22,22 @@
       "subtitle": "一个现代化的桌面音乐播放器，完成几步设置即可开始享用",
       "start": "开始设置",
       "features": {
-        "local": { "title": "本地音乐库", "desc": "扫描本地目录，自动整理音乐库" },
-        "quality": { "title": "无损音质", "desc": "原生音频引擎，支持多种无损格式" },
-        "streaming": { "title": "流媒体服务器", "desc": "Subsonic / Jellyfin / Emby 等" },
-        "lyrics": { "title": "丰富歌词体验", "desc": "AMLL 逐字歌词，桌面歌词、灵动岛、任务栏歌词" }
+        "local": {
+          "title": "本地音乐库",
+          "desc": "扫描本地目录，自动整理音乐库"
+        },
+        "quality": {
+          "title": "无损音质",
+          "desc": "原生音频引擎，支持多种无损格式"
+        },
+        "streaming": {
+          "title": "流媒体服务器",
+          "desc": "Subsonic / Jellyfin / Emby 等"
+        },
+        "lyrics": {
+          "title": "丰富歌词体验",
+          "desc": "AMLL 逐字歌词，桌面歌词、灵动岛、任务栏歌词"
+        }
       }
     },
     "agreement": {
@@ -381,6 +393,8 @@
   },
   "search": {
     "title": "搜索",
+    "plugins": "插件",
+    "pluginSource": "选择音源",
     "titleSuffix": "的搜索结果",
     "emptyKeyword": "请输入关键词开始搜索",
     "noResults": "没有找到匹配内容",
@@ -2007,8 +2021,6 @@
         "disabled": "已禁用",
         "unloaded": "未加载"
       },
-      "sectionSource": "音源插件",
-      "sectionControl": "控制插件",
       "detail": {
         "title": "插件详情",
         "intro": "简介",
@@ -2017,7 +2029,6 @@
         "info": "信息",
         "noDescription": "暂无简介",
         "grantNone": "该插件未声明任何权限",
-        "autoGranted": "自动授予",
         "sources": "音源",
         "events": "事件",
         "controls": "反向控制",
@@ -2032,9 +2043,26 @@
         "homepage": "主页"
       },
       "grant": {
-        "network": { "label": "联网", "desc": "插件可发起网络请求" },
-        "control": { "label": "控制", "desc": "插件可控制播放器" },
-        "ui": { "label": "界面", "desc": "插件可扩展或修改应用界面" }
+        "network": {
+          "label": "联网",
+          "desc": "插件可发起网络请求"
+        },
+        "control": {
+          "label": "控制",
+          "desc": "插件可控制播放器"
+        },
+        "ui": {
+          "label": "界面",
+          "desc": "插件可添加歌曲菜单并发送系统通知"
+        },
+        "library": {
+          "label": "曲库",
+          "desc": "插件可搜索本地曲库并读取歌曲信息"
+        },
+        "api": {
+          "label": "平台接口",
+          "desc": "使用当前登录态调用音乐平台接口"
+        }
       }
     },
     "pluginManager": {
@@ -2294,7 +2322,7 @@
     "NETWORK_ERROR": "音源连接失败，请检查网络或更换音源",
     "NETWORK_TIMEOUT": "音源响应超时，请检查网络或更换音源",
     "URL_RESOLVE_FAILED": "无法获取播放地址",
-    "NO_PLUGIN_AVAILABLE": "未找到支持该平台的插件",
+    "NO_PLUGIN_AVAILABLE": "未找到可用的音源插件",
     "NETEASE_LOGIN_EXPIRED": "登录已失效，已切换为游客模式",
     "NETEASE_VIP_REQUIRED": "该歌曲需要会员或单独购买",
     "NETEASE_TRIAL_DISABLED": "该歌曲仅提供试听，请在设置中允许试听播放",

@@ -1,58 +1,23 @@
 /** 注册音源接口和会话管理的跨进程入口 */
 
 import { ipcMain } from "electron";
-import { callNetease, clearNeteaseCookies, mergeNeteaseCookies } from "@main/apis/netease";
-import { NeteaseRequestError } from "@main/apis/netease/core/response";
+import { clearNeteaseCookies, mergeNeteaseCookies } from "@main/apis/netease";
 import { cookieToJson } from "@main/apis/netease/core/cookie";
-import { callQQMusic, clearQQMusicCookies, mergeQQMusicCookies } from "@main/apis/qqmusic";
-import { callKugou, clearKugouSession, mergeKugouSession } from "@main/apis/kugou";
+import { clearQQMusicCookies, mergeQQMusicCookies } from "@main/apis/qqmusic";
+import { clearKugouSession, mergeKugouSession } from "@main/apis/kugou";
 import { openNeteaseLoginWindow } from "@main/window/login";
 import { coreLog } from "@main/utils/logger";
 import type { ApiPlatform } from "@shared/types/apis";
+import { callPlatformApi } from "@main/services/platformApi";
 
-/** 各平台的调用器：统一返回 `{ status?, body?, data? }` 由前端按需取 */
-const dispatch = async (
-  platform: ApiPlatform,
-  name: string,
-  params: Record<string, unknown>,
-): Promise<Record<string, unknown>> => {
-  switch (platform) {
-    case "netease": {
-      const res = await callNetease(name, params);
-      return { status: res.status, body: res.body };
-    }
-    case "qqmusic": {
-      const data = await callQQMusic(name, params);
-      return { data };
-    }
-    case "kugou": {
-      const data = await callKugou(name, params);
-      return { data };
-    }
-    default:
-      throw new Error(`unknown platform: ${platform}`);
-  }
-};
-
+/**
+ * 注册平台接口的进程通信处理器
+ */
 export const registerApisIpc = (): void => {
   ipcMain.handle(
     "apis:call",
     async (_evt, platform: ApiPlatform, name: string, params?: Record<string, unknown>) => {
-      try {
-        const result = await dispatch(platform, name, params ?? {});
-        return { ok: true, ...result };
-      } catch (err) {
-        coreLog.warn(`[apis] ${platform}.${name} failed:`, err);
-        if (platform === "netease" && err instanceof NeteaseRequestError) {
-          return {
-            ok: false,
-            error: err.message,
-            status: err.response.status,
-            body: err.response.body,
-          };
-        }
-        return { ok: false, error: err instanceof Error ? err.message : String(err) };
-      }
+      return callPlatformApi(platform, name, params);
     },
   );
 

@@ -14,7 +14,8 @@ import { resetXeapiKey } from "./core/xeapi";
 import { resetWebClientSession } from "./core/webClient";
 import { modules } from "./modules";
 import { neteaseLog } from "@main/utils/logger";
-import type { Query } from "./core/option";
+import { createOption, type Query } from "./core/option";
+import { DOMAIN } from "./core/config";
 
 /** 会更新登录凭据或网页 SDK 状态的接口 */
 const SESSION_MUTATING: ReadonlySet<string> = new Set([
@@ -209,15 +210,38 @@ export const ensureNeteaseAnonymousSession = async (): Promise<void> => {
 };
 
 /**
- * 调用注册的业务接口
- * @param name - 见 modules/index.ts 中的 key
- * @param params - 业务参数；cookie 自动注入，无需调用方传
+ * 调用注册模块或原始业务路径，复用宿主会话与加密层
+ * @param name - 接口模块名或 /api/ 业务路径
+ * @param params - 业务参数，登录状态由宿主注入
+ * @returns 原始响应状态与业务正文
  */
 export const callNetease = async (
   name: string,
   params: Record<string, unknown> = {},
 ): Promise<{ status: number; body: any }> => {
-  const fn = Object.hasOwn(modules, name) ? modules[name] : undefined;
+  // 原始业务路径复用同一登录态与加密层，不接受完整 URL 或路径跳转
+  const rawPath = /^\/api\/[a-zA-Z0-9_/-]+$/.test(name);
+  const fn = Object.hasOwn(modules, name)
+    ? modules[name]
+    : rawPath
+      ? (query: Query) => {
+          const {
+            cookie: _cookie,
+            crypto: _crypto,
+            client: _client,
+            ua: _ua,
+            realIP: _realIP,
+            ip: _ip,
+            domain: _domain,
+            checkToken: _checkToken,
+            e_r: _e_r,
+            ...data
+          } = query;
+          const options = createOption(query, "api");
+          if (options.crypto === "api") options.domain = DOMAIN;
+          return createRequest(name, data, options);
+        }
+      : undefined;
   if (!fn) throw new Error(`unknown netease api: ${name}`);
 
   const isSessionEndpoint =
@@ -230,7 +254,7 @@ export const callNetease = async (
   }
   const session = loadSession();
 
-  const cacheable = !NON_CACHEABLE.has(name);
+  const cacheable = !rawPath && !NON_CACHEABLE.has(name);
   const cacheKey = cacheable ? buildCacheKey(name, params) : "";
   if (cacheable) {
     const hit = cacheGet(cacheKey);

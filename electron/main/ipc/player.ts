@@ -20,6 +20,7 @@ import * as streamingPlayback from "@main/services/streaming/playback";
 import { invalidateStreamingSession } from "@main/services/streaming/adapters/resolve";
 import { fetchBytes } from "@main/utils/fetchBytes";
 import { getPlayer, resetPlayer, onPlayerCreated, onPlayerReset } from "@main/services/engine";
+import { playerControl } from "@main/services/playerControl";
 import {
   cancelPendingReinit,
   setPauseOnDeviceSwitch,
@@ -941,6 +942,13 @@ export const registerPlayerIpc = (): void => {
     }
   });
 
+  // 队列由主窗口维护，仅同步索引以供外部查询。
+  ipcMain.on("player:syncQueueIndex", (event, index: number) => {
+    if (event.sender !== getMainWindow()?.webContents) return;
+    if (!Number.isSafeInteger(index) || index < -1) return;
+    playerControl.syncQueueIndex(index);
+  });
+
   // 渲染进程同步播放模式到托盘
   ipcMain.on("player:syncPlayMode", (_event, repeat: RepeatMode, shuffle: ShuffleMode) => {
     setTrayPlayMode(repeat, shuffle);
@@ -1084,15 +1092,5 @@ export const registerPlayerIpc = (): void => {
   app.on("before-quit", () => {
     stopDeviceMonitoring();
     releasePowerBlocker();
-  });
-  let quitting = false;
-  app.on("before-quit", (event) => {
-    if (quitting) return;
-    quitting = true;
-    event.preventDefault();
-    void Promise.race([
-      streamingPlayback.stopStreamingPlayback(),
-      new Promise<void>((resolve) => setTimeout(resolve, 2000)),
-    ]).finally(() => app.quit());
   });
 };

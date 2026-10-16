@@ -11,23 +11,21 @@ import {
 } from "@main/window";
 import { isMac } from "@main/utils/config";
 import { registerIpcHandlers } from "@main/ipc";
-import { init as initMedia, shutdown as shutdownMedia } from "@main/services/media";
+import { init as initMedia } from "@main/services/media";
 import { init as initLastfm } from "@main/services/lastfm";
 import { initGlobalHotkey } from "@main/services/globalHotkey";
-import { initDatabase, closeDatabase } from "@main/database";
+import { initDatabase } from "@main/database";
 import { init as initSongCache } from "@main/services/songCache";
 import { init as initDownload } from "@main/services/downloadManager";
 import { pluginRegistry } from "@main/plugins/registry";
-import {
-  init as initPlaybackBridge,
-  dispose as disposePlaybackBridge,
-} from "@main/plugins/playbackBridge";
+import { init as initPlaybackBridge } from "@main/plugins/playbackBridge";
 import { registerCacheScheme, handleCacheProtocol } from "@main/utils/protocol";
-import { startServer, stopServer } from "@main/server";
-import { startMcpServer, stopMcpServer } from "@main/services/mcp/http";
-import { initUpdater, disposeUpdater } from "@main/services/updater";
+import { startServer } from "@main/server";
+import { startMcpServer } from "@main/services/mcp/http";
+import { initUpdater } from "@main/services/updater";
 import { coreLog, initLogger } from "@main/utils/logger";
 import { isAppQuitting } from "@main/utils/lifecycle";
+import { initAppLifecycle } from "./lifecycle";
 import {
   initOrpheusRegistration,
   extractOrpheusUrl,
@@ -144,7 +142,7 @@ export const initApp = (): void => {
     initLastfm();
     // 初始化插件系统
     pluginRegistry.init();
-    // 初始化播放事件桥（需在 pluginRegistry.init 之后，读 hasEnabledControlPlugin）
+    // 初始化播放事件桥
     initPlaybackBridge();
     // 恢复歌词相关窗口
     restoreLyricWindows();
@@ -164,21 +162,5 @@ export const initApp = (): void => {
     });
     coreLog.info("应用初始化完成");
   });
-  // 所有窗口关闭时退出应用
-  app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") {
-      app.quit();
-    }
-  });
-  /** 退出前释放资源 */
-  app.on("before-quit", () => {
-    coreLog.info("应用即将退出，清理资源");
-    shutdownMedia();
-    closeDatabase();
-    void stopServer();
-    void stopMcpServer();
-    void pluginRegistry.shutdown();
-    disposePlaybackBridge();
-    disposeUpdater();
-  });
+  initAppLifecycle();
 };

@@ -1367,6 +1367,7 @@ export const moveInQueue = (fromIndex: number, toIndex: number): void => {
 };
 
 let unsubscribe: (() => void) | null = null;
+let stopQueueIndexSync: (() => void) | null = null;
 let initialized = false;
 
 /** 初始化播放器 */
@@ -1379,10 +1380,17 @@ export const initPlayer = async (): Promise<void> => {
   await settings.syncSystem();
   // 流媒体 store 必须在恢复队列前就绪，否则队列里的 streaming track 拿不到 cfg
   await useStreamingStore().init();
-  // 插件 store 同理：在线歌曲 URL 兜底走插件，列表必须在 loadTrack 前就绪
-  void usePluginsStore().load();
   await queue.restoreQueue();
   const status = useStatusStore();
+  stopQueueIndexSync = watch(
+    () => status.currentIndex,
+    (index) => window.api.player.syncQueueIndex(index),
+    { immediate: true },
+  );
+  // 独立来源曲目恢复前等待所属插件，其余插件继续在后台启动。
+  await usePluginsStore().load(
+    status.currentTrack?.source === "plugin" ? status.currentTrack.plugin?.pluginId : undefined,
+  );
   // 兼容移除“不循环”前持久化的旧状态
   if ((status.repeatMode as string) === "off") status.repeatMode = "list";
   // 恢复上次的音量和播放模式到主进程
@@ -1495,6 +1503,9 @@ export const restoreLastTrack = async (): Promise<void> => {
 /** 清理事件订阅 */
 export const disposePlayer = (): void => {
   disposeNextTrackPreload();
+  stopQueueIndexSync?.();
+  stopQueueIndexSync = null;
+  window.api.player.syncQueueIndex(-1);
   if (unsubscribe) {
     unsubscribe();
     unsubscribe = null;
