@@ -17,6 +17,9 @@ import { fetchScript, fetchMarket } from "@main/plugins/net";
 import { broadcast } from "@main/utils/broadcast";
 import { coreLog } from "@main/utils/logger";
 
+/**
+ * 注册插件管理、搜索与音源调用的进程通信处理器
+ */
 export const registerPluginIpc = (): void => {
   ipcMain.handle(
     "plugin:setPermission",

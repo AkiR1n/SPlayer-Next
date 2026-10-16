@@ -54,11 +54,21 @@ interface HeaderFields {
   changelog?: string;
 }
 
+/**
+ * 解析脚本头部的插件元数据
+ * @param source - 解压后的脚本源码
+ * @returns 声明的插件元数据
+ */
 const parseHeader = (source: string): HeaderFields => {
   const out: HeaderFields = {};
   const m0 = BLOCK_COMMENT_RE.exec(source);
   const block = m0 ? m0[0].slice(2, -2) : source.slice(0, 3000);
 
+  /**
+   * 按元数据字段名解析声明值
+   * @param key - 元数据字段名
+   * @param raw - 未清理的声明值
+   */
   const applyField = (key: string, raw: string): void => {
     const limit = FIELD_LIMITS[key];
     const val = limit && raw.length > limit ? raw.slice(0, limit) + "..." : raw;
@@ -165,7 +175,13 @@ export interface LoadedScript {
   decompressed: boolean;
 }
 
-/** 从磁盘或原始字符串加载并解析 */
+/**
+ * 加载脚本并生成安装清单
+ * @param rawOrPath - 脚本源码或文件路径
+ * @param isPath - 是否从文件路径读取
+ * @param fileName - 安装后保留的脚本文件名
+ * @returns 解压后的脚本及插件清单
+ */
 export const loadScript = (rawOrPath: string, isPath: boolean, fileName?: string): LoadedScript => {
   const raw = isPath ? fs.readFileSync(rawOrPath, "utf-8") : rawOrPath;
   const wasCompressed = raw.trim().startsWith(GZ_PREFIX);

@@ -73,10 +73,11 @@ export type OnlineResolveResult =
   | { ok: false; errorCode: ErrorCode };
 
 /**
- * 经插件解析在线音频源 URL
- * @param track - 要解析的 track
- * @param quality - 音质档位（由调用方传入，默认 hq）
- * @returns 解析结果，失败时带原因码
+ * 通过插件解析曲目音频地址，独立来源直接调用所属插件
+ * @param track - 待播放曲目
+ * @param quality - 请求的音质档位，默认 hq
+ * @param skipPluginIds - 本轮音源恢复中已失败的插件标识
+ * @returns 音频地址或解析失败原因
  */
 export const resolveByPlugin = async (
   track: Track,

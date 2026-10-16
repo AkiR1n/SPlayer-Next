@@ -14,4 +14,4 @@
 | 2    | 播放控制；播放事件订阅；`play`、`pause`、`next`、`prev`、`seek`、`setVolume`、`getPosition`；设置项声明与 `onSettingChange`；歌曲菜单与 `menuClick`                                             |
 | 3    | `musicComment` 处理器，支持分页评论                                                                                                                                                             |
 | 4    | `music.searchOnline`、`music.searchLibrary`；`player.playTrack`、`addToQueue`、`stop`、`setPlayMode`、`getStatus`、`getNowPlaying`；`api.call`、`notify`；`library` 与 `api` 权限、用户管理权限 |
-| 5    | 独立来源的搜索、播放和队列恢复；搜索候选支持 `cover`，结果支持 `total` / `hasMore`；`Track` 保存插件来源信息，歌词与封面直接向所属插件获取                                                      |
+| 5    | `player.getQueue`；独立来源的搜索、播放和队列恢复；搜索候选支持 `cover`，结果支持 `total` / `hasMore`；`Track` 保存插件来源信息，歌词与封面直接向所属插件获取                                   |

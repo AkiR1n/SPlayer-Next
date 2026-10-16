@@ -82,7 +82,10 @@ class PluginHost {
 
   private onHostStableGlobal: (() => void) | null = null;
 
-  /** 连续收到心跳后通知注册表恢复自动重启额度 */
+  /**
+   * 登记宿主稳定运行后的回调
+   * @param cb - 恢复自动重启额度的回调
+   */
   setOnHostStable(cb: () => void): void {
     this.onHostStableGlobal = cb;
   }
@@ -128,7 +131,12 @@ class PluginHost {
     return this.startPromise;
   }
 
-  /** 加载一个插件，resolve 于其 ready */
+  /**
+   * 加载插件并等待就绪
+   * @param spec - 脚本与沙箱初始化参数
+   * @param callbacks - 插件消息处理回调
+   * @returns 插件注册的音源能力
+   */
   async loadPlugin(
     spec: PluginLoadSpec,
     callbacks: PluginHostCallbacks,
@@ -236,6 +244,10 @@ class PluginHost {
     }
   }
 
+  /**
+   * 分发宿主进程上报的消息
+   * @param msg - 宿主消息
+   */
   private onMessage(msg: SandboxOut): void {
     switch (msg.kind) {
       case "hostReady": {
@@ -349,6 +361,9 @@ class PluginHost {
     this.onHostLostGlobal?.();
   }
 
+  /**
+   * 启动心跳检测并清除上一轮健康计数
+   */
   private startHeartbeat(): void {
     this.stopHeartbeat();
     this.heartbeatMisses = 0;

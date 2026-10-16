@@ -5,13 +5,16 @@ import { playerControl } from "@main/services/playerControl";
 import * as nowPlaying from "@main/services/nowPlaying";
 import { getAlbumList, getArtistList, getRandomTracks, getTrackCount } from "@main/database";
 import { createMcpEndpoint as createHttpEndpoint, type McpEndpoint } from "./endpoint";
-import { searchOnline, searchLibrary, trackSchema } from "@main/services/music";
+import { searchOnline, searchLibrary, trackSchema, queueQuerySchema } from "@main/services/music";
 
 const jsonContent = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value) }],
 });
 
-/** 创建并注册 SPlayer MCP 能力 */
+/**
+ * 创建并注册 SPlayer MCP 工具与资源
+ * @returns 供 HTTP 会话使用的 MCP 服务
+ */
 const createServer = (): McpServer => {
   const server = new McpServer({
     name: "splayer-next",
@@ -36,6 +39,18 @@ const createServer = (): McpServer => {
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
     () => jsonContent(nowPlaying.lightSnapshot()),
+  );
+
+  server.registerTool(
+    "get_queue",
+    {
+      title: "读取播放队列",
+      description:
+        "按当前播放顺序读取队列，返回 Track 数组、总数、当前曲目在整个队列中的索引和偏移。offset 默认 0，limit 默认 50、最多 100；空队列的当前索引为 -1。",
+      inputSchema: queueQuerySchema.shape,
+      annotations: { readOnlyHint: true, idempotentHint: true },
+    },
+    async (options) => jsonContent(await playerControl.getQueue(options)),
   );
 
   const controls = [

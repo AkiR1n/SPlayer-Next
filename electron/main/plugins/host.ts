@@ -21,7 +21,7 @@ import { searchOnline, searchLibrary, trackSchema } from "@main/services/music";
 import { callPlatformApi } from "@main/services/platformApi";
 import { Notification } from "electron";
 import * as nowPlaying from "@main/services/nowPlaying";
-import type { OnlineSearchOptions } from "@shared/types/music";
+import type { OnlineSearchOptions, PlaybackQueueOptions } from "@shared/types/music";
 
 const AUTH_RESPONSE_FIELDS = new Set([
   "cookie",
@@ -42,7 +42,16 @@ const AUTH_RESPONSE_FIELDS = new Set([
   "sessionkey",
 ]);
 
-/** 处理一次 plugin→host 调用 */
+/**
+ * 校验插件授权并执行一次宿主调用
+ * @param pluginId - 插件标识
+ * @param getGrants - 读取用户当前允许的权限
+ * @param callId - 调用标识
+ * @param method - 宿主方法名
+ * @param args - 方法参数
+ * @param isActive - 判断本次插件会话是否仍有效
+ * @param pluginName - 通知中显示的插件名称
+ */
 export const dispatchHostCall = async (
   pluginId: string,
   getGrants: () => PluginGrant[],
@@ -67,6 +76,9 @@ export const dispatchHostCall = async (
               : method.startsWith("player.")
                 ? "control"
                 : undefined;
+    /**
+     * 按用户当前授权校验本次调用
+     */
     const checkPermission = (): void => {
       if (requiredGrant && !getGrants().includes(requiredGrant)) {
         throw Object.assign(new Error(`plugin "${pluginId}" lacks "${requiredGrant}" grant`), {
@@ -131,6 +143,9 @@ export const dispatchHostCall = async (
       case "player.stop":
         playerControl.stop();
         break;
+      case "player.getQueue":
+        data = await playerControl.getQueue(args[0] as PlaybackQueueOptions | undefined);
+        break;
       case "player.getStatus":
         data = playerControl.getStatus();
         break;
@@ -176,7 +191,11 @@ export const dispatchHostCall = async (
         for (const key of ["cookie", "domain", "proxy", "headers"]) {
           if (Object.hasOwn(params, key)) throw new Error(`Host API does not accept ${key}`);
         }
-        // 只在插件边界剥离认证凭据，界面调用仍接收原始响应。
+        /**
+         * 递归移除插件接口响应中的认证凭据
+         * @param value - 原始响应或嵌套字段
+         * @returns 保留业务数据的响应副本
+         */
         const omitCredentials = (value: unknown): unknown => {
           if (Array.isArray(value)) return value.map(omitCredentials);
           if (value === null || typeof value !== "object") return value;

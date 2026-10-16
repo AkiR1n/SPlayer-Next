@@ -5,13 +5,20 @@
  * 收敛到一处：引擎直控 + 必要时通知渲染层补记账。
  */
 
+import { randomUUID } from "node:crypto";
+import { getMainWindow } from "@main/window";
+import { queueQuerySchema } from "@main/services/music";
 import { getPlayer } from "@main/services/engine";
 import * as neteaseScrobble from "@main/services/neteaseScrobble";
 import * as lastfm from "@main/services/lastfm";
 import { sendToMain } from "@main/utils/broadcast";
 import { toMs } from "@main/utils/time";
 import type { ShuffleMode, RepeatMode, Track, PlayerState } from "@shared/types/player";
-import type { PlaybackStatusSnapshot } from "@shared/types/music";
+import type {
+  PlaybackStatusSnapshot,
+  PlaybackQueueOptions,
+  PlaybackQueueSnapshot,
+} from "@shared/types/music";
 import { getTrayPlayMode } from "@main/services/tray";
 
 /**
@@ -25,7 +32,45 @@ const seek = (positionMs: number): Promise<void> => {
   return getPlayer().seek(positionMs / 1000);
 };
 
+/**
+ * 向主窗口按需读取队列，超时自动移除响应监听
+ * @param options - 队列偏移与返回条数
+ * @returns 当前播放顺序的队列分页及播放索引
+ */
+const getQueue = async (options: PlaybackQueueOptions = {}): Promise<PlaybackQueueSnapshot> => {
+  const query = queueQuerySchema.parse(options);
+  const window = getMainWindow();
+  if (!window || window.isDestroyed() || window.webContents.isDestroyed()) {
+    throw new Error("Playback window is unavailable");
+  }
+  const requestId = randomUUID();
+  const channel = `player:queue-response:${requestId}`;
+  const ipc = window.webContents.ipc;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      ipc.removeListener(channel, receive);
+      reject(new Error("Reading the playback queue timed out"));
+    }, 5000);
+    /**
+     * 完成当前查询并释放超时任务
+     * @param _event - 主窗口的进程通信事件
+     * @param snapshot - 渲染进程读取的队列快照
+     */
+    const receive = (_event: Electron.IpcMainEvent, snapshot: PlaybackQueueSnapshot): void => {
+      clearTimeout(timer);
+      resolve(snapshot);
+    };
+    ipc.once(channel, receive);
+    window.webContents.send("player:event", { type: "getQueue", data: { requestId, ...query } });
+  });
+};
+
 export const playerControl = {
+  getQueue,
+  /**
+   * 读取播放状态并统一时间单位为毫秒
+   * @returns 播放状态、音量与播放模式
+   */
   getStatus: (): PlaybackStatusSnapshot => {
     const status = getPlayer().getStatus();
     return {

@@ -10,6 +10,9 @@ import { coreLog } from "@main/utils/logger";
 import type { ApiPlatform } from "@shared/types/apis";
 import { callPlatformApi } from "@main/services/platformApi";
 
+/**
+ * 注册平台接口的进程通信处理器
+ */
 export const registerApisIpc = (): void => {
   ipcMain.handle(
     "apis:call",

@@ -25,6 +25,11 @@ export const trackSchema = z
     path: ["plugin"],
   }) satisfies z.ZodType<Track>;
 
+export const queueQuerySchema = z.strictObject({
+  offset: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).default(0),
+  limit: z.number().int().min(1).max(100).default(50),
+});
+
 export const onlineSearchSchema = z.strictObject({
   platform: z.enum(["netease", "qqmusic", "kugou"]),
   query: z.string().trim().min(1).max(200),

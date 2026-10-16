@@ -207,6 +207,10 @@ export const useTrackMenu = (
     return [...base, ...pluginGroups];
   });
 
+  /**
+   * 执行所选歌曲菜单操作
+   * @param key - 菜单项标识
+   */
   const handleSelect = async (key: string): Promise<void> => {
     const current = track.value;
     if (!current) return;

@@ -221,6 +221,10 @@ class PluginRegistry extends EventEmitter {
     coreLog.info(`[plugin] registry initialized, ${this.runtimes.size} plugins loaded`);
   }
 
+  /**
+   * 读取全部插件的状态、设置与实时授权
+   * @returns 供界面使用的插件列表
+   */
   listInfo(): PluginInfo[] {
     return Array.from(this.runtimes.values()).map((rt) => ({
       manifest: rt.manifest,
@@ -236,18 +240,31 @@ class PluginRegistry extends EventEmitter {
     return this.runtimes.get(id);
   }
 
+  /**
+   * 按完整插件标识读取设置，避免将点号解释为配置路径
+   * @param id - 插件标识
+   * @returns 插件已保存的设置
+   */
   private settingsOf(id: string): Record<string, unknown> {
     const all = store.get("plugins.perPlugin");
     return Object.hasOwn(all, id) ? all[id] : {};
   }
 
-  /** 获取用户对当前声明的授权，避免带点的插件 ID 被解释为配置路径 */
+  /**
+   * 合并插件声明与用户授权，未关闭的权限默认允许
+   * @param manifest - 插件清单
+   * @returns 插件各项权限的实时状态
+   */
   private permissionsOf(manifest: PluginManifest): PluginPermissions {
     const saved = store.get("plugins.permissions")?.[manifest.id];
     return Object.fromEntries(manifest.grant.map((grant) => [grant, saved?.[grant] ?? true]));
   }
 
-  /** 获取实际授权，供消息调用与菜单路由统一检查 */
+  /**
+   * 读取当前允许的权限，供宿主调用与菜单统一检查
+   * @param id - 插件标识
+   * @returns 用户允许且插件已声明的权限
+   */
   getGrantedPermissions(id: string): PluginGrant[] {
     const rt = this.runtimes.get(id);
     if (!rt) return [];
@@ -301,7 +318,11 @@ class PluginRegistry extends EventEmitter {
     return this.installFromSource(raw);
   }
 
-  /** 从脚本源码安装（供本地文件、URL 下载等入口复用） */
+  /**
+   * 从源码安装插件并启动沙箱
+   * @param raw - 待安装的脚本源码
+   * @returns 安装后的插件状态
+   */
   async installFromSource(raw: string): Promise<PluginInfo> {
     ensureDirs();
     const { source, manifest } = loadScript(raw, false);
@@ -348,7 +369,11 @@ class PluginRegistry extends EventEmitter {
     return this.runtimes.get(id)?.updateInfo?.updateUrl ?? undefined;
   }
 
-  /** 构造对外的插件信息 */
+  /**
+   * 构造包含实时授权与设置的插件信息
+   * @param rt - 插件运行时
+   * @returns 对外的插件状态
+   */
   private infoOf(rt: PluginRuntime): PluginInfo {
     return {
       permissions: this.permissionsOf(rt.manifest),
@@ -453,6 +478,10 @@ class PluginRegistry extends EventEmitter {
     };
   }
 
+  /**
+   * 停止插件并删除脚本、存储与授权记录
+   * @param id - 插件标识
+   */
   async uninstall(id: string): Promise<void> {
     const rt = this.runtimes.get(id);
     if (!rt) return;
@@ -478,6 +507,11 @@ class PluginRegistry extends EventEmitter {
     store.set("plugins.enabled", enabledMap);
   }
 
+  /**
+   * 切换插件启用状态并启动或停止沙箱
+   * @param id - 插件标识
+   * @param enabled - 是否启用插件
+   */
   async setEnabled(id: string, enabled: boolean): Promise<void> {
     const rt = this.runtimes.get(id);
     if (!rt) return;
@@ -502,7 +536,10 @@ class PluginRegistry extends EventEmitter {
     }
   }
 
-  /** 启动单个插件：在共享 host 进程里加载它 */
+  /**
+   * 在共享宿主中启动插件并隔离本次加载会话
+   * @param rt - 待启动的插件运行时
+   */
   private async start(rt: PluginRuntime): Promise<void> {
     const id = rt.manifest.id;
     if (pluginHost.isReady(id) || rt.loading) return; // 已就绪或正在加载
@@ -665,6 +702,10 @@ class PluginRegistry extends EventEmitter {
     }, delayMs);
   }
 
+  /**
+   * 取消插件加载与在途调用并卸载沙箱
+   * @param rt - 待停止的插件运行时
+   */
   private async stop(rt: PluginRuntime): Promise<void> {
     rt.hostSession?.abort();
     rt.loading = false;
@@ -683,6 +724,12 @@ class PluginRegistry extends EventEmitter {
     rt.pending.clear();
   }
 
+  /**
+   * 更新插件状态并通知界面与播放事件桥
+   * @param rt - 插件运行时
+   * @param status - 新的插件状态
+   * @param hadSubscribers - 更新前是否存在播放事件订阅者
+   */
   private setStatus(
     rt: PluginRuntime,
     status: PluginStatus,
@@ -710,13 +757,19 @@ class PluginRegistry extends EventEmitter {
     }
   }
 
-  /** 订阅者的有无状态变化时通知事件桥挂载或卸载 */
+  /**
+   * 在订阅者有无变化时通知播放事件桥
+   * @param before - 更新前是否存在播放事件订阅者
+   */
   private notifyPlaybackActivity(before: boolean): void {
     const after = this.hasPlaybackSubscribers();
     if (before !== after) this.emit("playbackActivityChange", after);
   }
 
-  /** 是否存在已启用且就绪的播放事件订阅者 */
+  /**
+   * 检查是否有已启用且就绪的播放事件订阅者
+   * @returns 是否需要保持播放事件桥接
+   */
   hasPlaybackSubscribers(): boolean {
     for (const rt of this.runtimes.values()) {
       if (rt.enabled && rt.events.length > 0 && rt.status.state === "ready") return true;

@@ -18,19 +18,6 @@ import { isLosslessQuality, getQualityLabel } from "@/utils/quality";
 import { navigateToAlbum, navigateToArtist } from "@/utils/navigate";
 import type { SVirtualListExposed } from "@/components/ui/SVirtualList.vue";
 import * as player from "@/core/player";
-import IconArrowUpDown from "~icons/lucide/arrow-up-down";
-import IconArrowUpAz from "~icons/lucide/arrow-up-az";
-import IconLucideListEnd from "~icons/lucide/list-end";
-import IconLucideListPlus from "~icons/lucide/list-plus";
-import IconLucideListMinus from "~icons/lucide/list-minus";
-import IconLucideDownload from "~icons/lucide/download";
-import IconLucideTrash2 from "~icons/lucide/trash-2";
-import IconLucideArrowLeftRight from "~icons/lucide/arrow-left-right";
-import IconLucideX from "~icons/lucide/x";
-import IconLucideCloud from "~icons/lucide/cloud";
-import IconLucideCloudOff from "~icons/lucide/cloud-off";
-import IconFavorite from "~icons/material-symbols/favorite-rounded";
-import IconFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 
 const props = withDefaults(
   defineProps<{
@@ -100,25 +87,41 @@ const textCollator = new Intl.Collator(undefined, {
 /** 当前播放歌曲 ID */
 const playingId = computed(() => media.track?.id);
 
-/** 专辑是否可跳转：本地不要求 id，其他源需要 album.id */
+/**
+ * 判断曲目的专辑是否可跳转详情
+ * @param item - 列表中的曲目
+ * @returns 是否提供专辑链接
+ */
 const isAlbumLinkable = (item: Track): boolean => {
   if (!item.album?.name || item.source === "plugin") return false;
   return item.source === "local" || !!item.album.id;
 };
 
-/** 歌手是否可跳转：本地不要求 id，其他源需要 artist.id */
+/**
+ * 判断曲目的歌手是否可跳转详情
+ * @param item - 列表中的曲目
+ * @param artist - 待展示的歌手
+ * @returns 是否提供歌手链接
+ */
 const isArtistLinkable = (item: Track, artist: Artist): boolean => {
   if (!artist.name || item.source === "plugin") return false;
   return item.source === "local" || !!artist.id;
 };
 
-/** 跳转到歌手页 */
+/**
+ * 打开曲目所属平台的歌手详情
+ * @param item - 列表中的曲目
+ * @param artist - 要打开的歌手
+ */
 const goArtist = (item: Track, artist: Artist): void => {
   if (!isArtistLinkable(item, artist)) return;
   navigateToArtist(artist.name, { source: item.source, artistId: artist.id });
 };
 
-/** 跳转到专辑页 */
+/**
+ * 打开曲目所属平台的专辑详情
+ * @param item - 列表中的曲目
+ */
 const goAlbum = (item: Track): void => {
   if (!isAlbumLinkable(item)) return;
   navigateToAlbum(item.album?.name, { source: item.source, albumId: item.album?.id });
@@ -467,7 +470,7 @@ defineExpose({
                   </template>
                   <div class="w-60 flex flex-col gap-3 text-sm">
                     <div class="flex items-center gap-2 text-xs">
-                      <IconArrowUpDown class="size-3.5" />
+                      <IconLucideArrowUpDown class="size-3.5" />
                       <span>{{ t("songList.sort.mode") }}</span>
                     </div>
                     <SRadioGroup v-model:value="sortField" size="small">
@@ -486,7 +489,7 @@ defineExpose({
                     <div class="h-px bg-outline-variant/25" />
 
                     <div class="flex items-center gap-2 text-xs">
-                      <IconArrowUpAz class="size-3.5" />
+                      <IconLucideArrowUpAz class="size-3.5" />
                       <span>{{ t("songList.sort.order") }}</span>
                     </div>
                     <SRadioGroup
@@ -704,8 +707,8 @@ defineExpose({
                 >
                   <template #icon>
                     <SIconSwap :active="fav.isLiked(item)">
-                      <template #on><IconFavorite /></template>
-                      <template #off><IconFavoriteOutline /></template>
+                      <template #on><IconMaterialSymbolsFavoriteRounded /></template>
+                      <template #off><IconMaterialSymbolsFavoriteOutlineRounded /></template>
                     </SIconSwap>
                   </template>
                 </SButton>

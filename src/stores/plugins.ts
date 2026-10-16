@@ -25,7 +25,10 @@ export const usePluginsStore = defineStore("plugins", () => {
       })),
   );
 
-  /** 拉取列表并建立状态订阅 */
+  /**
+   * 拉取插件状态并建立唯一的状态订阅
+   * @param waitForPluginId - 需要等待首次加载完成的插件标识
+   */
   const load = async (waitForPluginId?: string): Promise<void> => {
     list.value = await window.api.plugins.list(waitForPluginId);
     loaded.value = true;
@@ -152,7 +155,12 @@ export const usePluginsStore = defineStore("plugins", () => {
     unsubscribe = null;
   };
 
-  /** 开关即时响应，仅在保存失败时回滚对应权限 */
+  /**
+   * 即时更新权限开关，保存失败时恢复原值
+   * @param id - 插件标识
+   * @param grant - 权限名称
+   * @param enabled - 是否允许该权限
+   */
   const setPermission = async (id: string, grant: PluginGrant, enabled: boolean): Promise<void> => {
     const previous = list.value.find((info) => info.manifest.id === id)?.permissions?.[grant];
     list.value = list.value.map((info) =>

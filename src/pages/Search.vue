@@ -5,8 +5,6 @@ import type { PlaybackContext, Track } from "@shared/types/player";
 import { ALL_PLATFORMS, PLATFORM_SHORT_NAME, type Platform } from "@shared/types/platform";
 import type { CoverItem } from "@/types/artist";
 import { searchSongs, searchAlbums, searchArtists, searchPlaylists } from "@/apis/search";
-import SongList from "@/components/list/SongList.vue";
-import CoverList from "@/components/list/CoverList.vue";
 import { useStatusStore } from "@/stores/status";
 import { usePluginsStore } from "@/stores/plugins";
 import { navigateToAlbum, navigateToArtist, navigateToPlaylist } from "@/utils/navigate";
@@ -110,6 +108,10 @@ interface TabState<T> {
   loadingMore: boolean;
 }
 
+/**
+ * 创建搜索分类的分页状态
+ * @returns 空的搜索状态
+ */
 const createState = <T,>(): TabState<T> => ({
   items: [],
   total: 0,
@@ -139,8 +141,8 @@ const fetchers = {
 } as const;
 
 /**
- * 拉取指定 tab
- * @param tab - 要拉取的 tab
+ * 读取指定搜索分类并忽略已过期的请求结果
+ * @param tab - 搜索分类
  * @param append - 是否追加下一页
  */
 const fetchTab = async (tab: TabKey, append: boolean): Promise<void> => {
@@ -201,6 +203,9 @@ const fetchTab = async (tab: TabKey, append: boolean): Promise<void> => {
   }
 };
 
+/**
+ * 清空各分类结果并使旧搜索请求失效
+ */
 const resetStates = (): void => {
   searchGeneration++;
   (Object.keys(states) as TabKey[]).forEach((tab) => {
@@ -259,6 +264,10 @@ const onTabSwitch = (key: string): void => {
   router.replace({ query: { ...route.query, tab: key } });
 };
 
+/**
+ * 切换内置平台或插件搜索入口
+ * @param key - 平台标识或插件入口
+ */
 const onPlatformSwitch = (key: string): void => {
   const source =
     key === "plugin"
@@ -276,6 +285,10 @@ const onPlatformSwitch = (key: string): void => {
   });
 };
 
+/**
+ * 切换插件提供的搜索来源
+ * @param key - 来源选项的唯一标识
+ */
 const onPluginSourceSwitch = (key: string | number | boolean): void => {
   const source = pluginSources.value.find((item) => item.value === key);
   if (!source) return;

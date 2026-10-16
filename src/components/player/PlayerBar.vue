@@ -8,9 +8,6 @@ import { useTrackMenu } from "@/composables/useTrackMenu";
 import { useDownload } from "@/composables/useDownload";
 import { useProgressLyric } from "@/composables/useProgressLyric";
 import * as player from "@/core/player";
-import IconFavorite from "~icons/material-symbols/favorite-rounded";
-import IconFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
-import IconLucideMoreHorizontal from "~icons/lucide/more-horizontal";
 
 const status = useStatusStore();
 const settings = useSettingsStore();
@@ -67,8 +64,8 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
               >
                 <template #icon>
                   <SIconSwap :active="fav.isLiked(media.track)">
-                    <template #on><IconFavorite /></template>
-                    <template #off><IconFavoriteOutline /></template>
+                    <template #on><IconMaterialSymbolsFavoriteRounded /></template>
+                    <template #off><IconMaterialSymbolsFavoriteOutlineRounded /></template>
                   </SIconSwap>
                 </template>
               </SButton>
@@ -148,8 +145,8 @@ const { items: menuItems, handleSelect: onMenuSelect } = useTrackMenu(toRef(medi
             >
               <template #icon>
                 <SIconSwap :active="fav.isLiked(media.track)">
-                  <template #on><IconFavorite /></template>
-                  <template #off><IconFavoriteOutline /></template>
+                  <template #on><IconMaterialSymbolsFavoriteRounded /></template>
+                  <template #off><IconMaterialSymbolsFavoriteOutlineRounded /></template>
                 </SIconSwap>
               </template>
             </SButton>

@@ -101,6 +101,15 @@ const kugouToTrack = (song: KugouSong): Track => ({
   coverOriginal: song.coverOriginal,
 });
 
+/**
+ * 包装在线搜索的统一分页结果
+ * @param platform - 搜索平台
+ * @param page - 从 1 开始的页码
+ * @param limit - 每页曲目数
+ * @param total - 匹配曲目总数
+ * @param tracks - 当前页的轻量曲目
+ * @returns 可供插件与 MCP 共用的搜索结果
+ */
 const result = (
   platform: Platform,
   page: number,

@@ -1,3 +1,4 @@
+import { queueEntries } from "@/stores/queue";
 import type { PlayerEvent } from "@shared/types/player";
 import i18n from "@/i18n";
 import { toast } from "@/composables/useToast";
@@ -152,6 +153,17 @@ export const handleEvent = async (event: PlayerEvent): Promise<void> => {
     case "play":
       await play();
       break;
+    case "getQueue": {
+      const { requestId, offset, limit } = event.data;
+      const entries = queueEntries.value;
+      window.api.player.respondQueue(requestId, {
+        tracks: entries.slice(offset, offset + limit).map((item) => toRaw(item.track)),
+        total: entries.length,
+        currentIndex: entries.length ? status.playIndex : -1,
+        offset,
+      });
+      break;
+    }
     case "playTrack":
       await playNow(event.data.track);
       break;

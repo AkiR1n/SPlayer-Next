@@ -319,6 +319,37 @@ const status = await splayer.player.getStatus();
 splayer.log.info(status.state, status.positionMs);
 ```
 
+### Playback queue {#get-queue}
+
+Read the queue in its current playback order, including the shuffled order when shuffle is on.
+
+**Call:** `splayer.player.getQueue(options?)`
+
+**API version:** 5
+
+**Permission:** `control`
+
+**Parameters:**
+
+- `options.offset` (`number`): Optional, zero-based queue offset; defaults to `0`
+- `options.limit` (`number`): Optional, number of tracks to return, from 1 to 100; defaults to `50`
+
+**Returns:** `Promise<PlaybackQueueSnapshot>`.
+
+| Field          | Type      | Description                                                                        |
+| -------------- | --------- | ---------------------------------------------------------------------------------- |
+| `tracks`       | `Track[]` | Tracks in this page; see [Track](/en/types#track)                                  |
+| `total`        | `number`  | Total tracks in the queue                                                          |
+| `currentIndex` | `number`  | Zero-based index of the current track in the entire queue; `-1` for an empty queue |
+| `offset`       | `number`  | Queue offset used for this request                                                 |
+
+```js
+const queue = await splayer.player.getQueue({ offset: 0, limit: 20 });
+splayer.log.info(queue.tracks, queue.currentIndex, queue.total);
+```
+
+An offset beyond the queue returns an empty `tracks` array. Each call reads the queue at that moment. The Promise rejects if the main window is unavailable or does not respond.
+
 ### Current track {#now-playing}
 
 Reads a lightweight current-track snapshot without full lyrics. No parameters.

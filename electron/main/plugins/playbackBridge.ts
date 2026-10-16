@@ -129,10 +129,20 @@ const detach = (): void => {
   lastPluginState = "paused";
 };
 
-/** 启动：按当前是否有订阅播放事件的插件惰性挂载，并随其增减切换；每个插件就绪时定向补发快照 */
+/**
+ * 按播放事件订阅情况挂载桥接，并向就绪插件补发快照
+ */
 export const init = (): void => {
   if (pluginRegistry.hasPlaybackSubscribers()) attach();
+  /**
+   * 随订阅者有无切换事件桥接
+   * @param active - 是否存在就绪的播放事件订阅者
+   */
   const onPlaybackActivity = (active: boolean): void => (active ? attach() : detach());
+  /**
+   * 向刚就绪的订阅者补发播放快照
+   * @param id - 插件标识
+   */
   const onSubscriberReady = (id: string): void => primePlugin(id);
   pluginRegistry.on("playbackActivityChange", onPlaybackActivity);
   pluginRegistry.on("playbackSubscriberReady", onSubscriberReady);

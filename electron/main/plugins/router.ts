@@ -93,8 +93,9 @@ export const resolveUrl = async (args: PluginResolveUrlArgs): Promise<MusicUrlRe
 };
 
 /**
- * 触发某插件的自定义菜单项
- * @param args 菜单项参数
+ * 校验实时授权并执行插件歌曲菜单
+ * @param args - 插件、菜单标识与当前曲目
+ * @returns 插件菜单执行结果
  */
 export const invokeMenu = async (args: PluginInvokeMenuArgs): Promise<MenuClickRes> => {
   if (!pluginRegistry.getGrantedPermissions(args.pluginId).includes("ui")) {

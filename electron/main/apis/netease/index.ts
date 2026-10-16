@@ -210,9 +210,10 @@ export const ensureNeteaseAnonymousSession = async (): Promise<void> => {
 };
 
 /**
- * 调用注册的业务接口
- * @param name - 见 modules/index.ts 中的 key
- * @param params - 业务参数；cookie 自动注入，无需调用方传
+ * 调用注册模块或原始业务路径，复用宿主会话与加密层
+ * @param name - 接口模块名或 /api/ 业务路径
+ * @param params - 业务参数，登录状态由宿主注入
+ * @returns 原始响应状态与业务正文
  */
 export const callNetease = async (
   name: string,

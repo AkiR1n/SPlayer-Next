@@ -124,9 +124,10 @@ interface OnlinePreferenceOptions {
 }
 
 /**
- * 按当前歌词来源偏好获取在线歌词
+ * 按歌词来源偏好获取在线歌词
  * @param track - 歌曲信息
- * @param options - 本地歌词与竞态选项
+ * @param options - 本地歌词状态与请求有效性选项
+ * @returns 符合偏好的在线歌词，无可用结果时为 null
  */
 export const resolveOnlineByPreference = async (
   track: Track,
@@ -207,9 +208,10 @@ const shouldTryTTMLByFormat = (mainFormat: LyricFormat): boolean => {
 };
 
 /**
- * 拉取在线歌词对应的 TTML 覆盖版本
+ * 获取在线歌词对应的 TTML 覆盖版本
  * @param track - 歌曲信息
- * @param online - 在线歌词结果
+ * @param online - 已有在线歌词结果
+ * @returns 可用的 TTML 歌词，无覆盖版本时为 null
  */
 export const resolveTTMLOverlay = async (
   track: Track,

@@ -20,7 +20,11 @@ const { t } = useI18n();
 const pluginsStore = usePluginsStore();
 const savingGrant = ref<PluginGrant | null>(null);
 
-/** 保存期间阻止重复提交 */
+/**
+ * 保存权限开关并反馈失败原因
+ * @param grant - 权限名称
+ * @param enabled - 是否允许该权限
+ */
 const setPermission = async (grant: PluginGrant, enabled: boolean): Promise<void> => {
   if (!props.info || savingGrant.value) return;
   savingGrant.value = grant;

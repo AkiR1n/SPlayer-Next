@@ -5,7 +5,13 @@
 
 import type { LyricLine } from "./lyrics";
 import type { Track, PlayerState, RepeatMode, ShuffleMode } from "./player";
-import type { OnlineSearchOptions, OnlineSearchResult, PlaybackStatusSnapshot } from "./music";
+import type {
+  OnlineSearchOptions,
+  OnlineSearchResult,
+  PlaybackQueueOptions,
+  PlaybackQueueSnapshot,
+  PlaybackStatusSnapshot,
+} from "./music";
 import type { ApisApi } from "./apis";
 import type { CommentTab, MusicCommentItem } from "./comment";
 
@@ -68,7 +74,7 @@ export interface PluginSettingItem {
 }
 
 /**
- * UI 类插件向歌曲菜单贡献的单个菜单项
+ * 插件向歌曲菜单贡献的单个菜单项
  */
 export interface PluginMenuItem {
   /** 菜单项 id */
@@ -110,6 +116,12 @@ export interface PluginPlayerApi {
   playTrack(track: Track): Promise<{ id: string; source: Track["source"] }>;
   addToQueue(tracks: Track[], position?: "next" | "end"): Promise<{ count: number }>;
   setPlayMode(mode: { repeat?: RepeatMode; shuffle?: ShuffleMode }): Promise<void>;
+  /**
+   * 按当前播放顺序读取队列
+   * @param options - 可选的偏移和返回条数
+   * @returns 队列分页及当前播放索引
+   */
+  getQueue(options?: PlaybackQueueOptions): Promise<PlaybackQueueSnapshot>;
   getStatus(): Promise<PlaybackStatusSnapshot>;
   getNowPlaying(): Promise<{
     track: Track | null;
@@ -494,6 +506,7 @@ export type HostCallMethod =
   | "player.playTrack"
   | "player.addToQueue"
   | "player.setPlayMode"
+  | "player.getQueue"
   | "player.getStatus"
   | "player.getNowPlaying"
   | "music.searchOnline"

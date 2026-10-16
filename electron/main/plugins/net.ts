@@ -47,7 +47,10 @@ export const fetchScript = async (url: string): Promise<string> => {
   return new TextDecoder("utf-8").decode(buf);
 };
 
-/** 拉取插件市场索引 */
+/**
+ * 读取插件市场索引并过滤无效条目
+ * @returns 可安装的插件列表
+ */
 export const fetchMarket = async (): Promise<MarketPlugin[]> => {
   const resp = await net.fetch(PLUGIN_REGISTRY_URL, {
     method: "GET",
@@ -71,7 +74,12 @@ export const fetchMarket = async (): Promise<MarketPlugin[]> => {
     : [];
 };
 
-/** 校验并发起请求；抛出的错误携带 code 字段 */
+/**
+ * 校验地址与请求参数并通过宿主发送请求
+ * @param url - 请求地址
+ * @param opts - 请求方法、头部与正文等参数
+ * @returns 响应状态、头部和正文
+ */
 export const hostRequest = async (
   url: string,
   opts: HostRequestOptions = {},

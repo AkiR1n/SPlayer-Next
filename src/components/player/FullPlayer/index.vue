@@ -14,10 +14,6 @@ import { useProgressLyric } from "@/composables/useProgressLyric";
 import Lyrics from "@/components/player/Lyrics/index.vue";
 import { useWindowControls } from "@/composables/useWindowControls";
 import * as player from "@/core/player";
-import IconFavorite from "~icons/material-symbols/favorite-rounded";
-import IconFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
-import IconLucideListPlus from "~icons/lucide/list-plus";
-import IconLucideDownload from "~icons/lucide/download";
 
 const status = useStatusStore();
 const media = useMediaStore();
@@ -392,8 +388,8 @@ const showComments = (): void => {
             >
               <template #icon>
                 <SIconSwap :active="fav.isLiked(displayTrack)">
-                  <template #on><IconFavorite /></template>
-                  <template #off><IconFavoriteOutline /></template>
+                  <template #on><IconMaterialSymbolsFavoriteRounded /></template>
+                  <template #off><IconMaterialSymbolsFavoriteOutlineRounded /></template>
                 </SIconSwap>
               </template>
             </SButton>

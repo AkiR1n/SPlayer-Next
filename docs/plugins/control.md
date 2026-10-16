@@ -319,6 +319,37 @@ const status = await splayer.player.getStatus();
 splayer.log.info(status.state, status.positionMs);
 ```
 
+### 播放队列 {#get-queue}
+
+按当前播放顺序读取队列，随机播放时返回打乱后的顺序。
+
+**调用：** `splayer.player.getQueue(options?)`
+
+**API 版本：** 5
+
+**权限：** `control`
+
+**参数：**
+
+- `options.offset`（`number`）：可选，从 0 开始的队列偏移，默认 `0`
+- `options.limit`（`number`）：可选，返回条数，范围 1–100，默认 `50`
+
+**返回：** `Promise<PlaybackQueueSnapshot>`。
+
+| 字段           | 类型      | 说明                                                 |
+| -------------- | --------- | ---------------------------------------------------- |
+| `tracks`       | `Track[]` | 当前页曲目，结构见 [Track](/types#track)             |
+| `total`        | `number`  | 整个队列的曲目数                                     |
+| `currentIndex` | `number`  | 当前曲目在整个队列中的索引，从 0 开始；空队列为 `-1` |
+| `offset`       | `number`  | 本次查询的队列偏移                                   |
+
+```js
+const queue = await splayer.player.getQueue({ offset: 0, limit: 20 });
+splayer.log.info(queue.tracks, queue.currentIndex, queue.total);
+```
+
+偏移超出队列时，`tracks` 为空。每次调用读取当时的队列；主窗口尚未就绪或未响应时，Promise 拒绝。
+
 ### 当前曲目 {#now-playing}
 
 读取当前曲目的轻量快照，无参数，不含完整歌词。

@@ -1,3 +1,4 @@
+import type { PlaybackQueueSnapshot } from "./music";
 import type { LyricFormat } from "./lyrics";
 import type { Platform } from "./platform";
 import type { MusicSearchCandidate } from "./plugin";
@@ -233,6 +234,7 @@ export type PlayerEvent =
   | { type: "playTrack"; data: { track: Track } }
   | { type: "setShuffle"; data: { mode: ShuffleMode } }
   | { type: "setRepeat"; data: { mode: RepeatMode } }
+  | { type: "getQueue"; data: { requestId: string; offset: number; limit: number } }
   | { type: "addToQueue"; data: { tracks: Track[]; position: "next" | "end" } }
   | { type: "toggleLike" }
   | { type: "fftData"; data: FftData }
@@ -387,6 +389,12 @@ export interface PlayerApi {
   syncLikeState: (liked: boolean) => void;
   /** 广播播放控制事件 */
   dispatch: (type: string) => void;
+  /**
+   * 回传主进程请求的队列分页
+   * @param requestId - 队列查询标识
+   * @param snapshot - 队列分页及当前播放索引
+   */
+  respondQueue: (requestId: string, snapshot: PlaybackQueueSnapshot) => void;
   /** 订阅播放事件 */
   onEvent: (callback: (event: PlayerEvent) => void) => () => void;
 }
